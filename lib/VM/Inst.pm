@@ -16,21 +16,20 @@ package VM::Inst {
             CONST_TRUE
             CONST_FALSE
 
-            CONST_INT
-            CONST_FLOAT
+            CONST_NUM
             CONST_STR
 
-            ADD_INT  ADD_FLOAT
-            SUB_INT  SUB_FLOAT
-            MUL_INT  MUL_FLOAT
-            DIV_INT  DIV_FLOAT
-            MOD_INT  MOD_FLOAT
+            ADD_NUM
+            SUB_NUM
+            MUL_NUM
+            DIV_NUM
+            MOD_NUM
 
             CONCAT_STR
 
-            LT_INT   LT_FLOAT   LT_STR
-            GT_INT   GT_FLOAT   GT_STR
-            EQ_INT   EQ_FLOAT   EQ_STR
+            LT_NUM LT_STR
+            GT_NUM GT_STR
+            EQ_NUM EQ_STR
 
             JUMP
             JUMP_IF_TRUE

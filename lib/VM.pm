@@ -212,26 +212,26 @@ class VM {
                 $self->PUSH(true);
             } elsif ($opcode == VM::Inst->CONST_FALSE) {
                 $self->PUSH(false);
-            } elsif ($opcode == VM::Inst->CONST_INT || $opcode == VM::Inst->CONST_FLOAT || $opcode == VM::Inst->CONST_STR) {
+            } elsif ($opcode == VM::Inst->CONST_NUM || $opcode == VM::Inst->CONST_STR) {
                 my $v = $self->next_op;
                 $self->PUSH($v);
             }
             ## ------------------------------------
             ## MATH
             ## ------------------------------------
-            elsif ($opcode == VM::Inst->ADD_INT || $opcode == VM::Inst->ADD_FLOAT) {
+            elsif ($opcode == VM::Inst->ADD_NUM) {
                 my $b = $self->POP;
                 my $a = $self->POP;
                 $self->PUSH( $a + $b );
-            } elsif ($opcode == VM::Inst->SUB_INT || $opcode == VM::Inst->SUB_FLOAT) {
+            } elsif ($opcode == VM::Inst->SUB_NUM) {
                 my $b = $self->POP;
                 my $a = $self->POP;
                 $self->PUSH( $a - $b );
-            } elsif ($opcode == VM::Inst->MUL_INT || $opcode == VM::Inst->MUL_FLOAT) {
+            } elsif ($opcode == VM::Inst->MUL_NUM) {
                 my $b = $self->POP;
                 my $a = $self->POP;
                 $self->PUSH( $a * $b );
-            } elsif ($opcode == VM::Inst->DIV_INT || $opcode == VM::Inst->DIV_FLOAT) {
+            } elsif ($opcode == VM::Inst->DIV_NUM) {
                 my $b = $self->POP;
                 my $a = $self->POP;
                 if ( $b == 0 ) {
@@ -240,7 +240,7 @@ class VM {
                 }
                 # TODO : handle div by zero error here
                 $self->PUSH( $a / $b );
-            } elsif ($opcode == VM::Inst->MOD_INT || $opcode == VM::Inst->MOD_FLOAT) {
+            } elsif ($opcode == VM::Inst->MOD_NUM) {
                 my $b = $self->POP;
                 my $a = $self->POP;
                 if ( $b == 0 ) {
@@ -260,15 +260,15 @@ class VM {
             ## ------------------------------------
             ## Compariosons
             ## ------------------------------------
-            elsif ($opcode == VM::Inst->LT_INT || $opcode == VM::Inst->LT_FLOAT) {
+            elsif ($opcode == VM::Inst->LT_NUM) {
                 my $b = $self->POP;
                 my $a = $self->POP;
                 $self->PUSH( $a < $b ? true : false );
-            } elsif ($opcode == VM::Inst->GT_INT || $opcode == VM::Inst->GT_FLOAT) {
+            } elsif ($opcode == VM::Inst->GT_NUM) {
                 my $b = $self->POP;
                 my $a = $self->POP;
                 $self->PUSH( $a > $b ? true : false );
-            } elsif ($opcode == VM::Inst->EQ_INT || $opcode == VM::Inst->EQ_FLOAT) {
+            } elsif ($opcode == VM::Inst->EQ_NUM) {
                 my $b = $self->POP;
                 my $a = $self->POP;
                 $self->PUSH( $a == $b ? true : false );
