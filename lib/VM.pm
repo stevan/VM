@@ -11,31 +11,29 @@ use Time::HiRes  ();
 use VM::Inst;
 use VM::Error;
 
+use VM::Debugger;
+
 class VM {
     use constant DEBUG => $ENV{DEBUG} // 0;
 
-    field $source :param;
-    field $entry  :param;
-    field $clock  :param = $ENV{CLOCK};
+    field $source  :param;
+    field $entry   :param;
+    field $clock   :param = $ENV{CLOCK};
 
-    field @code;
-    field @stack;
-    field %labels;
+    field @code    :reader;
+    field @stack   :reader;
+    field %labels  :reader;
 
-    field @stdout;
-    field @stderr;
+    field @stdout  :reader;
+    field @stderr  :reader;
 
-    field $pc = 0;  # program counter (points to current instruction)
-    field $ic = 0;  # instruction counter (number of instructions run)
-    field $fp = 0;  # frame pointer (points to the top of the current stack frame)
-    field $sp = -1; # stack pointer (points to the current head of the stack)
+    field $pc      :reader = 0;  # program counter (points to current instruction)
+    field $ic      :reader = 0;  # instruction counter (number of instructions run)
+    field $fp      :reader = 0;  # frame pointer (points to the top of the current stack frame)
+    field $sp      :reader = -1; # stack pointer (points to the current head of the stack)
 
-    field $running = false;
-    field $error   = undef;
-
-    ADJUST {
-        $stack[$_] = undef foreach 0 .. 10;
-    }
+    field $running :reader = false;
+    field $error   :reader = undef;
 
     method PUSH ($v) { $stack[++$sp] = $v }
     method POP       { $stack[$sp--]      }
@@ -43,115 +41,43 @@ class VM {
 
     method next_op { $code[$pc++] }
 
-=pod
-
-\e[0;30m    Black
-\e[0;31m    Red
-\e[0;32m    Green
-\e[0;33m    Yellow
-\e[0;34m    Blue
-\e[0;35m    Purple
-\e[0;36m    Cyan
-\e[0;37m    White
-
-\e[1m       Bold
-\e[4m       Underline
-\e[9m       Strikethrough
-\e[0m       Reset
-
-=cut
-
     method DEBUGGER {
-
-        my %rev_labels = reverse %labels;
-
-        my @out;
-
-        push @out =>         '╭─────────────────────────╮ ╭─────────────────────────╮ ╭─────────────────────────────────╮';
-        push @out => sprintf "│ Program         ic:%04d │ │ Stack                   │ │ Error \e[0;31m\e[1m%25s\e[0m │", $ic, $error // '';
-        push @out =>         '├─────────────────────────┤ ├─────────────────────────┤ ╰─────────────────────────────────╯';
-        foreach my $i ( 0 .. $#code ) {
-
-            if (my $label = $rev_labels{$i}) {
-                push @out =>         "├─────────────────────────┤" unless $i == 0;
-                push @out => sprintf "│ \e[0;36m\e[1m%-23s\e[0m │" => $label;
-                push @out =>         "├─────────────────────────┤";
-            }
-
-            if (($pc - 1) == $i) {
-                push @out =>
-                    sprintf "│ \e[0;33m\e[1m%04d ▶ %-16s\e[0m │" =>
-                        $i,
-                        $code[$i];
-            } else {
-                push @out =>
-                    sprintf "│ %04d ┊ %s │" =>
-                        $i,
-                        VM::Inst::is_opcode($code[$i])
-                            ? (sprintf "\e[0;32m\e[3m%-16s\e[0m" => $code[$i])
-                            : exists $labels{"".$code[$i]}
-                                ? (sprintf "\e[0;36m%16s\e[0m" => $code[$i])
-                                : (sprintf "\e[0;34m%16s\e[0m" =>
-                                    Scalar::Util::looks_like_number($code[$i])
-                                        ? $code[$i]
-                                        : '"'.$code[$i].'"');
-            }
-
-        }
-        push @out => '╰─────────────────────────╯';
-
-        foreach my $i ( 0 .. $#stack ) {
-            $out[ $i + 3 ] .= sprintf ' │ %05d %s%s │' =>
-                $i,
-                ($i == $fp && $i == $sp
-                    ? '▶'
-                    : $i == $fp
-                        ? '▷'
-                        : $i == $sp
-                            ? '▷'
-                            : '┊'),,
-                (sprintf(
-                    ($i == $sp
-                        ? "\e[0;33m\e[4m\e[1m%16s\e[0m"
-                        : ($i == $fp
-                            ? "\e[0;32m\e[4m\e[1m%16s\e[0m"
-                            : ($i < $sp
-                                ? ($i > $fp ? "\e[0;33m\e[1m%16s\e[0m" : "\e[0;36m%16s\e[0m")
-                                : "\e[0;36m\e[2m%16s\e[0m"))),
-                        not(defined($stack[$i]))
-                            ? '~'
-                            : is_bool($stack[$i])
-                                ? ($stack[$i] ? '#t' : '#f')
-                                : Scalar::Util::looks_like_number($stack[$i])
-                                    ? $stack[$i]
-                                    : '"'.$stack[$i].'"'
-                    )),
-                ;
-        }
-        $out[ $#stack + 4 ] .= ' ╰─────────────────────────╯';
-
-
-        $out[ 3 ] .= ' ╭─────────────────────────────────╮';
-        $out[ 4 ] .= ' │ STDOUT                          │';
-        $out[ 5 ] .= ' ├─────────────────────────────────┤';
-        foreach my $i ( 0 .. $#stdout ) {
-            $out[ $i + 6 ] .= sprintf " │ \e[0;32m%-31s\e[0m │" => $stdout[$i];
-        }
-        $out[ $#stdout + 7 ] .= ' ╰─────────────────────────────────╯';
-
-        my $offset = $#stdout + 8;
-
-        $out[ $offset ] .= ' ╭─────────────────────────────────╮';
-        $out[ $offset + 1 ] .= ' │ STDERR                          │';
-        $out[ $offset + 2 ] .= ' ├─────────────────────────────────┤';
-        foreach my $i ( 0 .. $#stderr ) {
-            $out[ $i + $offset + 3 ] .= sprintf " │ \e[0;31m%-31s\e[0m │" => $stderr[$i];
-        }
-        $out[ $#stderr + $offset + 4 ] .= ' ╰─────────────────────────────────╯';
+        my $ui = VM::Debugger::UI::Zipped->new(
+            elements => [
+                VM::Debugger::UI::StackView->new(
+                    vm    => $self,
+                    width => 32,
+                    title => 'Stack'
+                ),
+                VM::Debugger::UI::CodeView->new(
+                    vm    => $self,
+                    width => 32,
+                    title => 'Code'
+                ),
+                VM::Debugger::UI::Stacked->new(
+                    elements => [
+                        VM::Debugger::UI::Panel->new(
+                            width    => 32,
+                            title    => 'Error',
+                            contents => [ $error ]
+                        ),
+                        VM::Debugger::UI::Panel->new(
+                            width    => 32,
+                            title    => 'STDOUT',
+                            contents => [ @stdout ]
+                        ),
+                        VM::Debugger::UI::Panel->new(
+                            width    => 32,
+                            title    => 'STDERR',
+                            contents => [ @stderr ]
+                        ),
+                    ]
+                )
+            ]
+        );
 
         warn "\e[2J\e[H\n";
-        warn join "\n" => @out, "\n";
-
+        warn join "\n" => $ui->draw, "\n";
     }
 
     method compile {
