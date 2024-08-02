@@ -16,7 +16,6 @@ class VM::Debugger::UI {
 
 }
 
-
 class VM::Debugger::UI::Panel {
     field $width    :param :reader;
     field $height   :param :reader = 0;

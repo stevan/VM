@@ -16,7 +16,7 @@ class VM {
 
     field $source :param;
     field $entry  :param;
-    field $clock  :param = $ENV{CLOCK} // 0.3;
+    field $clock  :param = $ENV{CLOCK};
 
     field @code;
     field @stack;
@@ -151,6 +151,7 @@ class VM {
 
         warn "\e[2J\e[H\n";
         warn join "\n" => @out, "\n";
+
     }
 
     method compile {
@@ -200,6 +201,15 @@ class VM {
             unless (defined $opcode) {
                 $error   = VM::Errors->UNEXPECTED_END_OF_CODE;
                 goto ERROR;
+            }
+
+            if (DEBUG) {
+                $self->DEBUGGER;
+                if ($clock) {
+                    Time::HiRes::sleep( $clock );
+                } else {
+                    my $x = <>;
+                }
             }
 
             if ($opcode == VM::Inst->HALT) {
@@ -371,14 +381,11 @@ class VM {
 
             $ic++;
 
-            Time::HiRes::sleep( $clock );
-
         ERROR:
             if ($error) {
                 $running = false;
+                $self->DEBUGGER if DEBUG;
             }
-
-            $self->DEBUGGER if DEBUG;
         }
     }
 
