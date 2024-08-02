@@ -8,6 +8,26 @@ use builtin qw[ is_bool ];
 use Scalar::Util;
 use Time::HiRes qw[ time sleep ];
 
+package VM::Errors {
+
+    our @ERRORS;
+    BEGIN {
+        @ERRORS = qw(
+            UNKNOWN_OPCODE
+            ILLEGAL_DIVISION_BY_ZERO
+            UNEXPECTED_END_OF_CODE
+            ILLEGAL_MOD_BY_ZERO
+        );
+
+        foreach my $i (0 .. $#ERRORS) {
+            no strict 'refs';
+            my $error = $ERRORS[$i];
+            $ERRORS[$i] = Scalar::Util::dualvar( $i, $error );
+            *{__PACKAGE__."::${error}"} = sub { $ERRORS[$i] };
+        }
+    }
+}
+
 package VM::Inst {
 
     our @OPCODES;
@@ -45,6 +65,10 @@ package VM::Inst {
             LOAD_ARG
             CALL
             RETURN
+
+            DUP
+            POP
+            SWAP
 
             PRINT
             WARN
@@ -84,15 +108,20 @@ class VM {
     field @stack;
     field %labels;
 
-    field $pc = 0;
-    field $ic = 0;
-    field $fp = 0;
-    field $sp = -1;
+    field @stdout;
+    field @stderr;
+
+    field $pc = 0;  # program counter (points to current instruction)
+    field $ic = 0;  # instruction counter (number of instructions run)
+    field $fp = 0;  # frame pointer (points to the top of the current stack frame)
+    field $sp = -1; # stack pointer (points to the current head of the stack)
 
     field $running = false;
+    field $error   = undef;
 
     method PUSH ($v) { $stack[++$sp] = $v }
     method POP       { $stack[$sp--]      }
+    method PEEK      { $stack[$sp]        }
 
     method next_op { $code[$pc++] }
 
@@ -120,9 +149,9 @@ class VM {
 
         my @out;
 
-        push @out =>         '╭─────────────────────────╮ ╭─────────────────────────╮';
-        push @out => sprintf '│ Program         ic:%04d │ │ Stack                   │', $ic;
-        push @out =>         '├─────────────────────────┤ ├─────────────────────────┤';
+        push @out =>         '╭─────────────────────────╮ ╭─────────────────────────╮ ╭─────────────────────────────────╮';
+        push @out => sprintf "│ Program         ic:%04d │ │ Stack                   │ │ Error \e[0;31m\e[1m%25s\e[0m │", $ic, $error // '';
+        push @out =>         '├─────────────────────────┤ ├─────────────────────────┤ ╰─────────────────────────────────╯';
         foreach my $i ( 0 .. $#code ) {
 
             if (my $label = $rev_labels{$i}) {
@@ -181,6 +210,25 @@ class VM {
         }
         $out[ $#stack + 4 ] .= ' ╰─────────────────────────╯';
 
+
+        $out[ 3 ] .= ' ╭─────────────────────────────────╮';
+        $out[ 4 ] .= ' │ STDOUT                          │';
+        $out[ 5 ] .= ' ├─────────────────────────────────┤';
+        foreach my $i ( 0 .. $#stdout ) {
+            $out[ $i + 6 ] .= sprintf " │ \e[0;32m%-31s\e[0m │" => $stdout[$i];
+        }
+        $out[ $#stdout + 7 ] .= ' ╰─────────────────────────────────╯';
+
+        my $offset = $#stdout + 8;
+
+        $out[ $offset ] .= ' ╭─────────────────────────────────╮';
+        $out[ $offset + 1 ] .= ' │ STDERR                          │';
+        $out[ $offset + 2 ] .= ' ├─────────────────────────────────┤';
+        foreach my $i ( 0 .. $#stderr ) {
+            $out[ $i + $offset + 3 ] .= sprintf " │ \e[0;31m%-31s\e[0m │" => $stderr[$i];
+        }
+        $out[ $#stderr + $offset + 4 ] .= ' ╰─────────────────────────────────╯';
+
         warn "\e[2J\e[H\n";
         warn join "\n" => @out, "\n";
     }
@@ -189,11 +237,18 @@ class VM {
 
         my $i = 0;
         foreach my $line (@$source) {
+            if (blessed $line && $line isa VM::Inst::Label) {
+                $labels{$line->name} = $i;
+            }
+            else {
+                $i++;
+            }
+        }
+
+        $i = 0;
+        foreach my $line (@$source) {
             if (blessed $line) {
-                if ( $line isa VM::Inst::Label ) {
-                    $labels{$line->name} = $i;
-                }
-                elsif ( $line isa VM::Inst::Marker ) {
+                if ( $line isa VM::Inst::Marker ) {
                     $labels{$line->name}
                         // die "Could not find label for marker(".$line->name.")";
                     $i++;
@@ -216,14 +271,16 @@ class VM {
 
     method run {
 
+        $error   = undef;
         $running = true;
 
         while ($running) {
             my $opcode = $self->next_op;
 
-            last unless defined $opcode;
-
-            $self->DEBUGGER if DEBUG;
+            unless (defined $opcode) {
+                $error   = VM::Errors->UNEXPECTED_END_OF_CODE;
+                goto ERROR;
+            }
 
             if ($opcode == VM::Inst->HALT) {
                 $running = false;
@@ -257,12 +314,19 @@ class VM {
             } elsif ($opcode == VM::Inst->DIV_INT || $opcode == VM::Inst->DIV_FLOAT) {
                 my $b = $self->POP;
                 my $a = $self->POP;
+                if ( $b == 0 ) {
+                    $error   = VM::Errors->ILLEGAL_DIVISION_BY_ZERO;
+                    goto ERROR;
+                }
                 # TODO : handle div by zero error here
                 $self->PUSH( $a / $b );
             } elsif ($opcode == VM::Inst->MOD_INT || $opcode == VM::Inst->MOD_FLOAT) {
                 my $b = $self->POP;
                 my $a = $self->POP;
-                # TODO : handle div by zero error here
+                if ( $b == 0 ) {
+                    $error   = VM::Errors->ILLEGAL_MOD_BY_ZERO;
+                    goto ERROR;
+                }
                 $self->PUSH( $a % $b );
             }
             ## ------------------------------------
@@ -357,23 +421,44 @@ class VM {
                 $self->PUSH($rval);     # push the return value onto the stack
             }
             ## ------------------------------------
+            ## Stack Manipulation
+            ## ------------------------------------
+            elsif ($opcode == VM::Inst->DUP) {
+                $self->PUSH($self->PEEK);
+            } elsif ($opcode == VM::Inst->POP) {
+                $self->POP;
+            } elsif ($opcode == VM::Inst->SWAP) {
+                my $v1 = $self->POP;
+                my $v2 = $self->POP;
+                $self->PUSH($v1);
+                $self->PUSH($v2);
+            }
+            ## ------------------------------------
             ## System Calls
             ## ------------------------------------
             elsif ($opcode == VM::Inst->PRINT) {
                 my $v = $self->POP;
-                say $v;
+                push @stdout => $v;
             } elsif ($opcode == VM::Inst->WARN) {
                 my $v = $self->POP;
-                warn "$v\n";
+                push @stderr => $v;
             }
             ## ------------------------------------
             else {
-                die "OPCODE($opcode)";
+                $error   = VM::Errors->UNKNOWN_OPCODE;
+                goto ERROR;
             }
 
             $ic++;
 
             Time::HiRes::sleep( $clock );
+
+        ERROR:
+            if ($error) {
+                $running = false;
+            }
+
+            $self->DEBUGGER if DEBUG;
         }
     }
 
@@ -386,17 +471,21 @@ my $vm = VM->new(
             VM::Inst->LOAD_ARG, 0,
             VM::Inst->CONST_INT, 0,
             VM::Inst->EQ_INT,
-            VM::Inst->JUMP_IF_FALSE, 10,
+            VM::Inst->JUMP_IF_FALSE, VM::Inst->marker('.fib1'),
             VM::Inst->CONST_INT, 0,
+            VM::Inst->CONST_STR, "RETURNING 0",
+            VM::Inst->WARN,
             VM::Inst->RETURN,
-
+        VM::Inst->label('.fib1'),
             VM::Inst->LOAD_ARG, 0,
             VM::Inst->CONST_INT, 3,
             VM::Inst->LT_INT,
-            VM::Inst->JUMP_IF_FALSE, 20,
+            VM::Inst->JUMP_IF_FALSE, VM::Inst->marker('.fib2'),
             VM::Inst->CONST_INT, 1,
+            VM::Inst->CONST_STR, "RETURNING 1",
+            VM::Inst->WARN,
             VM::Inst->RETURN,
-
+        VM::Inst->label('.fib2'),
             VM::Inst->LOAD_ARG, 0,
             VM::Inst->CONST_INT, 1,
             VM::Inst->SUB_INT,
@@ -408,6 +497,13 @@ my $vm = VM->new(
             VM::Inst->CALL, VM::Inst->marker('.fib'), 1,
 
             VM::Inst->ADD_INT,
+
+            VM::Inst->DUP,
+            VM::Inst->CONST_STR, "RETURNING ",
+            VM::Inst->SWAP,
+            VM::Inst->CONCAT_STR,
+            VM::Inst->WARN,
+
             VM::Inst->RETURN,
 
         VM::Inst->label('.main'),
