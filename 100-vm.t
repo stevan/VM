@@ -78,6 +78,7 @@ class VM {
 
     field $source :param;
     field $entry  :param;
+    field $clock  :param = 0.03;
 
     field @code;
     field @stack;
@@ -87,6 +88,8 @@ class VM {
     field $ic = 0;
     field $fp = 0;
     field $sp = -1;
+
+    field $running = false;
 
     method PUSH ($v) { $stack[++$sp] = $v }
     method POP       { $stack[$sp--]      }
@@ -117,9 +120,9 @@ class VM {
 
         my @out;
 
-        push @out =>         '╭─────────────────────────╮ ╭─────────────╮';
-        push @out => sprintf '│ Program         ic:%04d │ │ Stack       │', $ic;
-        push @out =>         '├─────────────────────────┤ ├─────────────┤';
+        push @out =>         '╭─────────────────────────╮ ╭─────────────────────────╮';
+        push @out => sprintf '│ Program         ic:%04d │ │ Stack                   │', $ic;
+        push @out =>         '├─────────────────────────┤ ├─────────────────────────┤';
         foreach my $i ( 0 .. $#code ) {
 
             if (my $label = $rev_labels{$i}) {
@@ -141,14 +144,17 @@ class VM {
                             ? (sprintf "\e[0;32m\e[3m%-16s\e[0m" => $code[$i])
                             : exists $labels{"".$code[$i]}
                                 ? (sprintf "\e[0;36m%16s\e[0m" => $code[$i])
-                                : (sprintf "\e[0;34m%16s\e[0m" => $code[$i]);
+                                : (sprintf "\e[0;34m%16s\e[0m" =>
+                                    Scalar::Util::looks_like_number($code[$i])
+                                        ? $code[$i]
+                                        : '"'.$code[$i].'"');
             }
 
         }
         push @out => '╰─────────────────────────╯';
 
         foreach my $i ( 0 .. $#stack ) {
-            $out[ $i + 3 ] .= sprintf ' │ %05d %s%s│' =>
+            $out[ $i + 3 ] .= sprintf ' │ %05d %s%s │' =>
                 $i,
                 ($i == $fp && $i == $sp
                     ? '▶'
@@ -159,23 +165,24 @@ class VM {
                             : '┊'),,
                 (sprintf(
                     ($i == $sp
-                        ? "\e[0;33m\e[4m\e[1m%5s\e[0m"
+                        ? "\e[0;33m\e[4m\e[1m%16s\e[0m"
                         : ($i == $fp
-                            ? "\e[0;32m\e[4m\e[1m%5s\e[0m"
+                            ? "\e[0;32m\e[4m\e[1m%16s\e[0m"
                             : ($i < $sp
-                                ? ($i > $fp ? "\e[0;33m\e[1m%5s\e[0m" : "\e[0;36m%5s\e[0m")
-                                : "\e[0;36m\e[2m%5s\e[0m"))),
+                                ? ($i > $fp ? "\e[0;33m\e[1m%16s\e[0m" : "\e[0;36m%16s\e[0m")
+                                : "\e[0;36m\e[2m%16s\e[0m"))),
                         is_bool($stack[$i])
                             ? ($stack[$i] ? '#t' : '#f')
-                            : $stack[$i]
+                            : Scalar::Util::looks_like_number($stack[$i])
+                                ? $stack[$i]
+                                : '"'.$stack[$i].'"'
                     )),
                 ;
         }
-        $out[ $#stack + 4 ] .= ' ╰─────────────╯';
+        $out[ $#stack + 4 ] .= ' ╰─────────────────────────╯';
 
         warn "\e[2J\e[H\n";
         warn join "\n" => @out, "\n";
-        Time::HiRes::sleep(0.1);
     }
 
     method compile {
@@ -209,7 +216,9 @@ class VM {
 
     method run {
 
-        while (1) {
+        $running = true;
+
+        while ($running) {
             my $opcode = $self->next_op;
 
             last unless defined $opcode;
@@ -217,7 +226,7 @@ class VM {
             $self->DEBUGGER if DEBUG;
 
             if ($opcode == VM::Inst->HALT) {
-                last;
+                $running = false;
             }
             ## ------------------------------------
             ## Constants
@@ -363,14 +372,12 @@ class VM {
             }
 
             $ic++;
+
+            Time::HiRes::sleep( $clock );
         }
     }
 
 }
-
-
-
-my $start = time;
 
 my $vm = VM->new(
     entry  => '.main',
@@ -404,13 +411,15 @@ my $vm = VM->new(
             VM::Inst->RETURN,
 
         VM::Inst->label('.main'),
+            VM::Inst->CONST_STR, "VM: ",
             VM::Inst->CONST_INT, 5,
             VM::Inst->CALL, VM::Inst->marker('.fib'), 1,
+            VM::Inst->CONCAT_STR,
             VM::Inst->PRINT,
             VM::Inst->HALT
     ]
 )->compile->run;
-say $start - time();
+
 
 sub fibonacci ($number) {
     if ($number < 2) { # base case
@@ -419,9 +428,7 @@ sub fibonacci ($number) {
     return fibonacci($number-1) + fibonacci($number-2);
 }
 
-$start = time();
 say "PERL: ", fibonacci(5);
-say $start - time();
 
 
 
