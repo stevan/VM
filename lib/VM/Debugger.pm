@@ -12,6 +12,53 @@ use Time::HiRes  ();
 use VM::Inst;
 use VM::Error;
 
+class VM::Debugger {
+
+    field $vm :param;
+
+    field $ui;
+
+    ADJUST {
+        $ui = VM::Debugger::UI::Zipped->new(
+            elements => [
+                VM::Debugger::UI::StackView->new(
+                    vm    => $vm,
+                    width => 32,
+                    title => 'Stack'
+                ),
+                VM::Debugger::UI::CodeView->new(
+                    vm    => $vm,
+                    width => 32,
+                    title => 'Code'
+                ),
+                VM::Debugger::UI::Stacked->new(
+                    elements => [
+                        VM::Debugger::UI::Panel->new(
+                            width    => 32,
+                            title    => 'Error',
+                            contents => [ $vm->error ]
+                        ),
+                        VM::Debugger::UI::Panel->new(
+                            width    => 32,
+                            title    => 'STDOUT',
+                            contents => [ $vm->stdout ]
+                        ),
+                        VM::Debugger::UI::Panel->new(
+                            width    => 32,
+                            title    => 'STDERR',
+                            contents => [ $vm->stderr ]
+                        ),
+                    ]
+                )
+            ]
+        );
+    }
+
+    method rect_height { $ui->rect_height }
+    method rect_widht  { $ui->rect_widht  }
+    method draw        { $ui->draw        }
+}
+
 
 class VM::Debugger::UI::Element {
     method rect_width;
@@ -218,7 +265,7 @@ class VM::Debugger::UI::CodeView :isa(VM::Debugger::UI::Element) {
         my $value_fmt  = "%".($width - 7)."s";
         my $count_fmt  = "%04d";
 
-        sub formatted_code ($code, $include_colors) {
+        my sub formatted_code ($code, $include_colors) {
             VM::Inst::is_opcode($code)
                 ? (sprintf(($include_colors ? "\e[0;32m" : "")."${opcode_fmt}\e[0m" => $code))
                 : (exists $labels{"".$code}

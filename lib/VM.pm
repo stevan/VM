@@ -42,45 +42,11 @@ class VM {
     method next_op { $code[$pc++] }
 
     method DEBUGGER {
-        my $ui = VM::Debugger::UI::Zipped->new(
-            elements => [
-                VM::Debugger::UI::StackView->new(
-                    vm    => $self,
-                    width => 32,
-                    title => 'Stack'
-                ),
-                VM::Debugger::UI::CodeView->new(
-                    vm    => $self,
-                    width => 32,
-                    title => 'Code'
-                ),
-                VM::Debugger::UI::Stacked->new(
-                    elements => [
-                        VM::Debugger::UI::Panel->new(
-                            width    => 32,
-                            title    => 'Error',
-                            contents => [ $error ]
-                        ),
-                        VM::Debugger::UI::Panel->new(
-                            width    => 32,
-                            title    => 'STDOUT',
-                            contents => [ @stdout ]
-                        ),
-                        VM::Debugger::UI::Panel->new(
-                            width    => 32,
-                            title    => 'STDERR',
-                            contents => [ @stderr ]
-                        ),
-                    ]
-                )
-            ]
-        );
-
-        warn "\e[2J\e[H\n";
-        warn join "\n" => $ui->draw, "\n";
+        say "\e[2J\e[H\n",
+            join "\n" => VM::Debugger->new(vm => $self)->draw;
     }
 
-    method compile {
+    method assemble {
 
         my $i = 0;
         foreach my $line (@$source) {
@@ -117,6 +83,15 @@ class VM {
     }
 
     method run {
+
+        $SIG{INT} = sub {
+            say "\e[?25h";
+            die "Interuptted!";
+        };
+
+        if (DEBUG) {
+            say "\e[?1049h\e[?25l\e[2J\e[H\n";
+        }
 
         $error   = undef;
         $running = true;
@@ -312,6 +287,10 @@ class VM {
                 $running = false;
                 $self->DEBUGGER if DEBUG;
             }
+        }
+
+        if (DEBUG) {
+            say "\e[?25h";
         }
     }
 

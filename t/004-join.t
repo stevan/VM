@@ -25,7 +25,7 @@ my $vm = VM->new(
             VM::Inst->PRINT,
             VM::Inst->HALT
     ]
-)->compile->run;
+)->assemble->run;
 
 
 
