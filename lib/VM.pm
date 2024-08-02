@@ -5,104 +5,18 @@ use experimental qw[ class builtin ];
 
 use builtin qw[ is_bool ];
 
-use Scalar::Util;
-use Time::HiRes qw[ time sleep ];
+use Scalar::Util ();
+use Time::HiRes  ();
 
-package VM::Errors {
-
-    our @ERRORS;
-    BEGIN {
-        @ERRORS = qw(
-            UNKNOWN_OPCODE
-            ILLEGAL_DIVISION_BY_ZERO
-            UNEXPECTED_END_OF_CODE
-            ILLEGAL_MOD_BY_ZERO
-        );
-
-        foreach my $i (0 .. $#ERRORS) {
-            no strict 'refs';
-            my $error = $ERRORS[$i];
-            $ERRORS[$i] = Scalar::Util::dualvar( $i, $error );
-            *{__PACKAGE__."::${error}"} = sub { $ERRORS[$i] };
-        }
-    }
-}
-
-package VM::Inst {
-
-    our @OPCODES;
-    our %OPCODES;
-    BEGIN {
-        @OPCODES = qw(
-            NOOP
-
-            CONST_TRUE
-            CONST_FALSE
-
-            CONST_INT
-            CONST_FLOAT
-            CONST_STR
-
-            ADD_INT  ADD_FLOAT
-            SUB_INT  SUB_FLOAT
-            MUL_INT  MUL_FLOAT
-            DIV_INT  DIV_FLOAT
-            MOD_INT  MOD_FLOAT
-
-            CONCAT_STR
-
-            LT_INT   LT_FLOAT   LT_STR
-            GT_INT   GT_FLOAT   GT_STR
-            EQ_INT   EQ_FLOAT   EQ_STR
-
-            JUMP
-            JUMP_IF_TRUE
-            JUMP_IF_FALSE
-
-            LOAD
-            STORE
-
-            LOAD_ARG
-            CALL
-            RETURN
-
-            DUP
-            POP
-            SWAP
-
-            PRINT
-            WARN
-
-            HALT
-        );
-
-
-        foreach my $i (0 .. $#OPCODES) {
-            no strict 'refs';
-            my $opcode = $OPCODES[$i];
-            $OPCODES[$i] = Scalar::Util::dualvar( $i, $opcode );
-            $OPCODES{$opcode} = $OPCODES[$i];
-            *{__PACKAGE__."::${opcode}"} = sub { $OPCODES[$i] };
-        }
-    }
-
-    sub is_opcode ($opcode) { exists $OPCODES{$opcode} }
-
-    class VM::Inst::Label  { field $name :param :reader }
-    class VM::Inst::Marker { field $name :param :reader }
-
-    sub label  ($, $name) { VM::Inst::Label ->new( name => $name ) }
-    sub marker ($, $name) { VM::Inst::Marker->new( name => $name ) }
-
-}
+use VM::Inst;
+use VM::Error;
 
 class VM {
-
     use constant DEBUG => $ENV{DEBUG} // 0;
 
     field $source :param;
     field $entry  :param;
-    field $clock  :param = 0.03;
+    field $clock  :param = $ENV{CLOCK} // 0.3;
 
     field @code;
     field @stack;
@@ -118,6 +32,10 @@ class VM {
 
     field $running = false;
     field $error   = undef;
+
+    ADJUST {
+        $stack[$_] = undef foreach 0 .. 10;
+    }
 
     method PUSH ($v) { $stack[++$sp] = $v }
     method POP       { $stack[$sp--]      }
@@ -200,11 +118,13 @@ class VM {
                             : ($i < $sp
                                 ? ($i > $fp ? "\e[0;33m\e[1m%16s\e[0m" : "\e[0;36m%16s\e[0m")
                                 : "\e[0;36m\e[2m%16s\e[0m"))),
-                        is_bool($stack[$i])
-                            ? ($stack[$i] ? '#t' : '#f')
-                            : Scalar::Util::looks_like_number($stack[$i])
-                                ? $stack[$i]
-                                : '"'.$stack[$i].'"'
+                        not(defined($stack[$i]))
+                            ? '~'
+                            : is_bool($stack[$i])
+                                ? ($stack[$i] ? '#t' : '#f')
+                                : Scalar::Util::looks_like_number($stack[$i])
+                                    ? $stack[$i]
+                                    : '"'.$stack[$i].'"'
                     )),
                 ;
         }
@@ -463,69 +383,3 @@ class VM {
     }
 
 }
-
-my $vm = VM->new(
-    entry  => '.main',
-    source => [
-        VM::Inst->label('.fib'),
-            VM::Inst->LOAD_ARG, 0,
-            VM::Inst->CONST_INT, 0,
-            VM::Inst->EQ_INT,
-            VM::Inst->JUMP_IF_FALSE, VM::Inst->marker('.fib1'),
-            VM::Inst->CONST_INT, 0,
-            VM::Inst->CONST_STR, "RETURNING 0",
-            VM::Inst->WARN,
-            VM::Inst->RETURN,
-        VM::Inst->label('.fib1'),
-            VM::Inst->LOAD_ARG, 0,
-            VM::Inst->CONST_INT, 3,
-            VM::Inst->LT_INT,
-            VM::Inst->JUMP_IF_FALSE, VM::Inst->marker('.fib2'),
-            VM::Inst->CONST_INT, 1,
-            VM::Inst->CONST_STR, "RETURNING 1",
-            VM::Inst->WARN,
-            VM::Inst->RETURN,
-        VM::Inst->label('.fib2'),
-            VM::Inst->LOAD_ARG, 0,
-            VM::Inst->CONST_INT, 1,
-            VM::Inst->SUB_INT,
-            VM::Inst->CALL, VM::Inst->marker('.fib'), 1,
-
-            VM::Inst->LOAD_ARG, 0,
-            VM::Inst->CONST_INT, 2,
-            VM::Inst->SUB_INT,
-            VM::Inst->CALL, VM::Inst->marker('.fib'), 1,
-
-            VM::Inst->ADD_INT,
-
-            VM::Inst->DUP,
-            VM::Inst->CONST_STR, "RETURNING ",
-            VM::Inst->SWAP,
-            VM::Inst->CONCAT_STR,
-            VM::Inst->WARN,
-
-            VM::Inst->RETURN,
-
-        VM::Inst->label('.main'),
-            VM::Inst->CONST_STR, "VM: ",
-            VM::Inst->CONST_INT, 5,
-            VM::Inst->CALL, VM::Inst->marker('.fib'), 1,
-            VM::Inst->CONCAT_STR,
-            VM::Inst->PRINT,
-            VM::Inst->HALT
-    ]
-)->compile->run;
-
-
-sub fibonacci ($number) {
-    if ($number < 2) { # base case
-        return $number;
-    }
-    return fibonacci($number-1) + fibonacci($number-2);
-}
-
-say "PERL: ", fibonacci(5);
-
-
-
-
