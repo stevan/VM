@@ -42,6 +42,7 @@ package VM::Inst {
             LOAD
             STORE
 
+            LOAD_ARG
             CALL
             RETURN
 
@@ -59,21 +60,30 @@ package VM::Inst {
             $OPCODES{$opcode} = $OPCODES[$i];
             *{__PACKAGE__."::${opcode}"} = sub { $OPCODES[$i] };
         }
-
-        sub is_opcode ($opcode) { exists $OPCODES{$opcode} }
     }
+
+    sub is_opcode ($opcode) { exists $OPCODES{$opcode} }
+
+    class VM::Inst::Label  { field $name :param :reader }
+    class VM::Inst::Marker { field $name :param :reader }
+
+    sub label  ($, $name) { VM::Inst::Label ->new( name => $name ) }
+    sub marker ($, $name) { VM::Inst::Marker->new( name => $name ) }
+
 }
 
 class VM {
 
     use constant DEBUG => $ENV{DEBUG} // 0;
 
-    field $code :param;
-    field $pc   :param;
+    field $source :param;
+    field $entry  :param;
 
+    field @code;
     field @stack;
-    field @locals;
+    field %labels;
 
+    field $pc = 0;
     field $ic = 0;
     field $fp = 0;
     field $sp = -1;
@@ -81,7 +91,7 @@ class VM {
     method PUSH ($v) { $stack[++$sp] = $v }
     method POP       { $stack[$sp--]      }
 
-    method next_op { $code->[$pc++] }
+    method next_op { $code[$pc++] }
 
 =pod
 
@@ -102,24 +112,36 @@ class VM {
 =cut
 
     method DEBUGGER {
+
+        my %rev_labels = reverse %labels;
+
         my @out;
 
         push @out =>         '╭─────────────────────────╮ ╭─────────────╮';
         push @out => sprintf '│ Program         ic:%04d │ │ Stack       │', $ic;
         push @out =>         '├─────────────────────────┤ ├─────────────┤';
-        foreach my $i ( 0 .. $#{$code} ) {
+        foreach my $i ( 0 .. $#code ) {
+
+            if (my $label = $rev_labels{$i}) {
+                push @out =>         "├─────────────────────────┤" unless $i == 0;
+                push @out => sprintf "│ \e[0;36m\e[1m%-23s\e[0m │" => $label;
+                push @out =>         "├─────────────────────────┤";
+            }
+
             if (($pc - 1) == $i) {
                 push @out =>
-                    sprintf "│ \e[1m\e[0;33m%04d ▶ %-16s\e[0m │" =>
+                    sprintf "│ \e[0;33m\e[1m%04d ▶ %-16s\e[0m │" =>
                         $i,
-                        $code->[$i];
+                        $code[$i];
             } else {
                 push @out =>
                     sprintf "│ %04d ┊ %s │" =>
                         $i,
-                        VM::Inst::is_opcode($code->[$i])
-                            ? (sprintf "\e[0;36m%-16s\e[0m" => $code->[$i])
-                            : (sprintf "\e[0;34m%16s\e[0m" => $code->[$i]);
+                        VM::Inst::is_opcode($code[$i])
+                            ? (sprintf "\e[0;32m\e[3m%-16s\e[0m" => $code[$i])
+                            : exists $labels{"".$code[$i]}
+                                ? (sprintf "\e[0;36m%16s\e[0m" => $code[$i])
+                                : (sprintf "\e[0;34m%16s\e[0m" => $code[$i]);
             }
 
         }
@@ -137,12 +159,12 @@ class VM {
                             : '┊'),,
                 (sprintf(
                     ($i == $sp
-                        ? "\e[0;33m\e[1m\e[4m%5s\e[0m"
+                        ? "\e[0;33m\e[4m\e[1m%5s\e[0m"
                         : ($i == $fp
-                            ? "\e[0;32m\e[1m\e[4m%5s\e[0m"
+                            ? "\e[0;32m\e[4m\e[1m%5s\e[0m"
                             : ($i < $sp
                                 ? ($i > $fp ? "\e[0;33m\e[1m%5s\e[0m" : "\e[0;36m%5s\e[0m")
-                                : "\e[0;35m%5s\e[0m"))),
+                                : "\e[0;36m\e[2m%5s\e[0m"))),
                         is_bool($stack[$i])
                             ? ($stack[$i] ? '#t' : '#f')
                             : $stack[$i]
@@ -153,7 +175,36 @@ class VM {
 
         warn "\e[2J\e[H\n";
         warn join "\n" => @out, "\n";
-        Time::HiRes::sleep(0.3);
+        Time::HiRes::sleep(0.1);
+    }
+
+    method compile {
+
+        my $i = 0;
+        foreach my $line (@$source) {
+            if (blessed $line) {
+                if ( $line isa VM::Inst::Label ) {
+                    $labels{$line->name} = $i;
+                }
+                elsif ( $line isa VM::Inst::Marker ) {
+                    $labels{$line->name}
+                        // die "Could not find label for marker(".$line->name.")";
+                    $i++;
+                    push @code => Scalar::Util::dualvar(
+                        $labels{$line->name},
+                        $line->name
+                    );
+                }
+            }
+            else {
+                $i++;
+                push @code => $line;
+            }
+        }
+
+        $pc = $labels{ $entry } // die "Could not find entry point($entry) in source";
+
+        return $self;
     }
 
     method run {
@@ -273,7 +324,10 @@ class VM {
             ## ------------------------------------
             ## Call functions
             ## ------------------------------------
-            elsif ($opcode == VM::Inst->CALL) {
+            elsif ($opcode == VM::Inst->LOAD_ARG) {
+                my $offset = $self->next_op;
+                $self->PUSH( $stack[($fp - 3) - $offset] );
+            } elsif ($opcode == VM::Inst->CALL) {
                 my $addr = $self->next_op; # func address to go to
                 my $argc = $self->next_op; # number of args the function has ...
                 # stash the context ...
@@ -318,43 +372,44 @@ class VM {
 
 my $start = time;
 
-my $fib = 0;
 my $vm = VM->new(
-    pc   => 38,
-    code => [
-        VM::Inst->LOAD, -3,
-        VM::Inst->CONST_INT, 0,
-        VM::Inst->EQ_INT,
-        VM::Inst->JUMP_IF_FALSE, 10,
-        VM::Inst->CONST_INT, 0,
-        VM::Inst->RETURN,
+    entry  => '.main',
+    source => [
+        VM::Inst->label('.fib'),
+            VM::Inst->LOAD_ARG, 0,
+            VM::Inst->CONST_INT, 0,
+            VM::Inst->EQ_INT,
+            VM::Inst->JUMP_IF_FALSE, 10,
+            VM::Inst->CONST_INT, 0,
+            VM::Inst->RETURN,
 
-        VM::Inst->LOAD, -3,
-        VM::Inst->CONST_INT, 3,
-        VM::Inst->LT_INT,
-        VM::Inst->JUMP_IF_FALSE, 20,
-        VM::Inst->CONST_INT, 1,
-        VM::Inst->RETURN,
+            VM::Inst->LOAD_ARG, 0,
+            VM::Inst->CONST_INT, 3,
+            VM::Inst->LT_INT,
+            VM::Inst->JUMP_IF_FALSE, 20,
+            VM::Inst->CONST_INT, 1,
+            VM::Inst->RETURN,
 
-        VM::Inst->LOAD, -3,
-        VM::Inst->CONST_INT, 1,
-        VM::Inst->SUB_INT,
-        VM::Inst->CALL, $fib, 1,
+            VM::Inst->LOAD_ARG, 0,
+            VM::Inst->CONST_INT, 1,
+            VM::Inst->SUB_INT,
+            VM::Inst->CALL, VM::Inst->marker('.fib'), 1,
 
-        VM::Inst->LOAD, -3,
-        VM::Inst->CONST_INT, 2,
-        VM::Inst->SUB_INT,
-        VM::Inst->CALL, $fib, 1,
+            VM::Inst->LOAD_ARG, 0,
+            VM::Inst->CONST_INT, 2,
+            VM::Inst->SUB_INT,
+            VM::Inst->CALL, VM::Inst->marker('.fib'), 1,
 
-        VM::Inst->ADD_INT,
-        VM::Inst->RETURN,
+            VM::Inst->ADD_INT,
+            VM::Inst->RETURN,
 
-        VM::Inst->CONST_INT, 5,
-        VM::Inst->CALL, $fib, 1,
-        VM::Inst->PRINT,
-        VM::Inst->HALT
+        VM::Inst->label('.main'),
+            VM::Inst->CONST_INT, 5,
+            VM::Inst->CALL, VM::Inst->marker('.fib'), 1,
+            VM::Inst->PRINT,
+            VM::Inst->HALT
     ]
-)->run;
+)->compile->run;
 say $start - time();
 
 sub fibonacci ($number) {
