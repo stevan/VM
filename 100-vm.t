@@ -104,13 +104,13 @@ class VM {
     method DEBUGGER {
         my @out;
 
-        push @out =>         '╭──────────────────────╮ ╭─────────────╮';
-        push @out => sprintf '│ Program      ic:%04d │ │ Stack       │', $ic;
-        push @out =>         '├──────────────────────┤ ├─────────────┤';
+        push @out =>         '╭─────────────────────────╮ ╭─────────────╮';
+        push @out => sprintf '│ Program         ic:%04d │ │ Stack       │', $ic;
+        push @out =>         '├─────────────────────────┤ ├─────────────┤';
         foreach my $i ( 0 .. $#{$code} ) {
             if (($pc - 1) == $i) {
                 push @out =>
-                    sprintf "│ \e[1m\e[0;33m%04d ▶ %-13s\e[0m │" =>
+                    sprintf "│ \e[1m\e[0;33m%04d ▶ %-16s\e[0m │" =>
                         $i,
                         $code->[$i];
             } else {
@@ -118,12 +118,12 @@ class VM {
                     sprintf "│ %04d ┊ %s │" =>
                         $i,
                         VM::Inst::is_opcode($code->[$i])
-                            ? (sprintf "\e[0;36m%-13s\e[0m" => $code->[$i])
-                            : (sprintf "\e[0;34m%13s\e[0m" => $code->[$i]);
+                            ? (sprintf "\e[0;36m%-16s\e[0m" => $code->[$i])
+                            : (sprintf "\e[0;34m%16s\e[0m" => $code->[$i]);
             }
 
         }
-        push @out => '╰──────────────────────╯';
+        push @out => '╰─────────────────────────╯';
 
         foreach my $i ( 0 .. $#stack ) {
             $out[ $i + 3 ] .= sprintf ' │ %05d %s%s│' =>
