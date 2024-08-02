@@ -64,6 +64,36 @@ class VM::Debugger::UI::Element {
     method rect_width;
     method rect_height;
     method draw;
+
+
+    method format_const ($const) {
+        #use Data::Dumper;
+        #warn Dumper $const if ref $const;
+
+        ref($const)
+            ? (sprintf '(%d)[%s]' =>
+                    $const->[0],
+                    join ', ' => map { $self->format_const($_) } $const->@[1 .. $const->[0]])
+            : not(defined($const))
+                ? '~'
+                : is_bool($const)
+                    ? ($const ? '#t' : '#f')
+                    : Scalar::Util::looks_like_number($const)
+                        ? $const
+                        : '"'.$const.'"'
+    }
+
+    method format_code ($code, $labels, $width, $include_colors) {
+        my $opcode_fmt = "%-${width}s";
+        my $value_fmt  = "%${width}s";
+
+        VM::Inst::is_opcode($code)
+            ? (sprintf(($include_colors ? "\e[0;32m" : "")."${opcode_fmt}\e[0m" => $code))
+            : (exists $labels->{"".$code}
+                ? (sprintf(($include_colors ? "\e[0;36m" : "")."${value_fmt}\e[0m" => $code))
+                : (sprintf(($include_colors ? "\e[0;34m" : "")."${value_fmt}\e[0m" =>
+                    $self->format_const($code))))
+    }
 }
 
 class VM::Debugger::UI::Stacked :isa(VM::Debugger::UI::Element) {
@@ -154,7 +184,7 @@ class VM::Debugger::UI::Panel :isa(VM::Debugger::UI::Element) {
             : ()),
         (map {
             if (defined(my $v = $contents->[$_])) {
-                ['│ ',(sprintf $fmt, $v),' │']
+                ['│ ',(sprintf $fmt, $self->format_const($v)),' │']
             } else {
                 ['│ ',(' ' x $width),' │']
             }
@@ -218,13 +248,7 @@ class VM::Debugger::UI::StackView :isa(VM::Debugger::UI::Element) {
                                         ? "\e[0;33m\e[1m${value_fmt}\e[0m"
                                         : "\e[0;36m${value_fmt}\e[0m")
                                     : "\e[0;36m\e[2m${value_fmt}\e[0m"))),
-                            not(defined($stack[$_]))
-                                ? '~'
-                                : is_bool($stack[$_])
-                                    ? ($stack[$_] ? '#t' : '#f')
-                                    : Scalar::Util::looks_like_number($stack[$_])
-                                        ? $stack[$_]
-                                        : '"'.$stack[$_].'"'
+                            $self->format_const($stack[$_])
                         ))),
                 ' │'
             ]
@@ -261,20 +285,7 @@ class VM::Debugger::UI::CodeView :isa(VM::Debugger::UI::Element) {
         my %rev_labels = reverse %labels;
 
         my $full_fmt   = "%-".$width."s";
-        my $opcode_fmt = "%-".($width - 7)."s";
-        my $value_fmt  = "%".($width - 7)."s";
         my $count_fmt  = "%04d";
-
-        my sub formatted_code ($code, $include_colors) {
-            VM::Inst::is_opcode($code)
-                ? (sprintf(($include_colors ? "\e[0;32m" : "")."${opcode_fmt}\e[0m" => $code))
-                : (exists $labels{"".$code}
-                    ? (sprintf(($include_colors ? "\e[0;36m" : "")."${value_fmt}\e[0m" => $code))
-                    : (sprintf(($include_colors ? "\e[0;34m" : "")."${value_fmt}\e[0m" =>
-                        (Scalar::Util::looks_like_number($code)
-                            ? $code
-                            : '"'.$code.'"'))))
-        }
 
         map { join '' => @$_ }
         ['╭─',('─' x $width),'─╮'],
@@ -291,13 +302,13 @@ class VM::Debugger::UI::CodeView :isa(VM::Debugger::UI::Element) {
                 push @out => ['├─',('─' x $width),'─┤'];
             }
 
-            if (($vm->pc - 1) == $_) {
+            if ($vm->ci == $_) {
                 push @out => ['│ ',
-                    (sprintf "\e[0;33m\e[1m${count_fmt} ▶ %s" => $_, formatted_code($code[$_], false)),
+                    (sprintf "\e[0;33m\e[1m${count_fmt} ▶ %s" => $_, $self->format_code($code[$_], \%labels, ($width - 7), false)),
                 ' │'];
             } else {
                 push @out => ['│ ',
-                    (sprintf "${count_fmt} ┊ %s" => $_, formatted_code($code[$_], true)),
+                    (sprintf "${count_fmt} ┊ %s" => $_, $self->format_code($code[$_], \%labels, ($width - 7), true)),
                 ' │'];
             }
 

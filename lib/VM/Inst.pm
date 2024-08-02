@@ -13,11 +13,16 @@ package VM::Inst {
         @OPCODES = qw(
             NOOP
 
+            CONST_NIL
+
             CONST_TRUE
             CONST_FALSE
 
             CONST_NUM
             CONST_STR
+
+            CREATE_TUPLE
+            TUPLE_INDEX
 
             ADD_NUM
             SUB_NUM

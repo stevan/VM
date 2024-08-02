@@ -29,8 +29,10 @@ class VM {
 
     field $pc      :reader = 0;  # program counter (points to current instruction)
     field $ic      :reader = 0;  # instruction counter (number of instructions run)
+    field $ci      :reader = 0;  # pointer to the current instruction
     field $fp      :reader = 0;  # frame pointer (points to the top of the current stack frame)
     field $sp      :reader = -1; # stack pointer (points to the current head of the stack)
+
 
     field $running :reader = false;
     field $error   :reader = undef;
@@ -97,20 +99,12 @@ class VM {
         $running = true;
 
         while ($running) {
+            $ci = $pc;
             my $opcode = $self->next_op;
 
             unless (defined $opcode) {
                 $error   = VM::Errors->UNEXPECTED_END_OF_CODE;
                 goto ERROR;
-            }
-
-            if (DEBUG) {
-                $self->DEBUGGER;
-                if ($clock) {
-                    Time::HiRes::sleep( $clock );
-                } else {
-                    my $x = <>;
-                }
             }
 
             if ($opcode == VM::Inst->HALT) {
@@ -119,7 +113,9 @@ class VM {
             ## ------------------------------------
             ## Constants
             ## ------------------------------------
-            elsif ($opcode == VM::Inst->CONST_TRUE) {
+            elsif ($opcode == VM::Inst->CONST_NIL) {
+                $self->PUSH(undef);
+            } elsif ($opcode == VM::Inst->CONST_TRUE) {
                 $self->PUSH(true);
             } elsif ($opcode == VM::Inst->CONST_FALSE) {
                 $self->PUSH(false);
@@ -167,6 +163,25 @@ class VM {
                 my $b = $self->POP;
                 my $a = $self->POP;
                 $self->PUSH( $a . $b );
+            }
+            ## ------------------------------------
+            ## Tuple Operations
+            ## ------------------------------------
+            elsif ($opcode == VM::Inst->CREATE_TUPLE) {
+                my $size = $self->next_op;
+                my @tuple = ($size);
+                my $x = $size;
+                while ($x) {
+                    push @tuple => $self->POP;
+                    $x--;
+                }
+                $self->PUSH( \@tuple );
+            }
+            elsif ($opcode == VM::Inst->TUPLE_INDEX) {
+                my $index = $self->next_op;
+                my $tuple = $self->POP;
+                # TODO: do some bounds checking here
+                $self->PUSH( $tuple->[$index + 1] );
             }
             ## ------------------------------------
             ## Compariosons
@@ -281,6 +296,15 @@ class VM {
             }
 
             $ic++;
+
+            if (DEBUG) {
+                $self->DEBUGGER;
+                if ($clock) {
+                    Time::HiRes::sleep( $clock );
+                } else {
+                    my $x = <>;
+                }
+            }
 
         ERROR:
             if ($error) {
