@@ -21,8 +21,8 @@ package VM::Inst {
             CONST_NUM
             CONST_STR
 
-            CREATE_TUPLE
-            TUPLE_INDEX
+            CREATE_ARRAY
+            ARRAY_INDEX
 
             ADD_NUM
             SUB_NUM
@@ -43,6 +43,7 @@ package VM::Inst {
             LOAD
             STORE
 
+            ALLOC_LOCAL
             LOAD_LOCAL
             STORE_LOCAL
             FREE_LOCAL

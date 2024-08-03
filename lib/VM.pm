@@ -40,7 +40,6 @@ class VM {
     field $fp      :reader =  0; # frame pointer (points to the top of the current stack frame)
     field $sp      :reader = -1; # stack pointer (points to the current head of the stack)
 
-
     field $running :reader = false;
     field $error   :reader = undef;
 
@@ -143,7 +142,7 @@ class VM {
             ## ------------------------------------
             ## Tuple Operations
             ## ------------------------------------
-            elsif ($opcode == VM::Inst->CREATE_TUPLE) {
+            elsif ($opcode == VM::Inst->CREATE_ARRAY) {
                 my $size = $self->next_op;
                 my @tuple = ($size);
                 my $x = $size;
@@ -153,7 +152,7 @@ class VM {
                 }
                 $self->PUSH( \@tuple );
             }
-            elsif ($opcode == VM::Inst->TUPLE_INDEX) {
+            elsif ($opcode == VM::Inst->ARRAY_INDEX) {
                 my $index = $self->next_op;
                 my $tuple = $self->POP;
                 # TODO: do some bounds checking here
@@ -222,16 +221,37 @@ class VM {
             # TODO: add memory error handling here
             # - OOM
             # - BOUNDS ERROR
-            elsif ($opcode == VM::Inst->LOAD_LOCAL) {
-                my $addr = $self->next_op;
-                $self->PUSH( $locals[$addr] );
+            elsif ($opcode == VM::Inst->ALLOC_LOCAL) {
+
+                my $size      = $self->POP;
+                my $next_addr = scalar @locals;
+
+                $locals[$next_addr + $_] = undef
+                    foreach 0 .. ($size - 1);
+
+                $self->PUSH( +{ addr => $next_addr => size => $size } );
+
+            } elsif ($opcode == VM::Inst->LOAD_LOCAL) {
+                my $p = $self->POP;
+
+                $self->PUSH([
+                    $p->{size},
+                    map { $locals[ $p->{addr} + $_ ] } 0 .. ($p->{size} - 1)
+                ]);
+
             } elsif ($opcode == VM::Inst->STORE_LOCAL) {
-                my $val  = $self->POP;
-                my $addr = $self->next_op;
-                $locals[$addr] = $val;
+
+                my $p   = $self->POP;
+                my $val = $self->POP;
+
+                $locals[ $p->{addr} + $_ ] = $val->[ 1 + $_ ]
+                    foreach 0 .. ($p->{size} - 1);
+
             } elsif ($opcode == VM::Inst->FREE_LOCAL) {
-                my $addr = $self->next_op;
-                $locals[$addr] = undef;
+                my $p = $self->POP;
+
+                $locals[ $p->{addr} + $_ ] = undef
+                    foreach 0 .. ($p->{size} - 1);
             }
             ## ------------------------------------
             ## Call functions

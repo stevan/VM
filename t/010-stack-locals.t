@@ -18,7 +18,7 @@ my $vm = VM->new(
             VM::Inst->CONST_NUM, 10,
             VM::Inst->CONST_TRUE,
             # construct the tuple
-            VM::Inst->CREATE_TUPLE, 3,
+            VM::Inst->CREATE_ARRAY, 3,
             # store it in our local
             VM::Inst->STORE, 0,
 
@@ -27,15 +27,15 @@ my $vm = VM->new(
             # and do this for each item
             # in the tuple
             VM::Inst->LOAD, 0,
-            VM::Inst->TUPLE_INDEX, 0,
+            VM::Inst->ARRAY_INDEX, 0,
             VM::Inst->PRINT,
 
             VM::Inst->LOAD, 0,
-            VM::Inst->TUPLE_INDEX, 1,
+            VM::Inst->ARRAY_INDEX, 1,
             VM::Inst->PRINT,
 
             VM::Inst->LOAD, 0,
-            VM::Inst->TUPLE_INDEX, 2,
+            VM::Inst->ARRAY_INDEX, 2,
             VM::Inst->PRINT,
 
             VM::Inst->HALT

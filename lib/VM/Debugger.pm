@@ -76,16 +76,20 @@ class VM::Debugger::UI::Element {
         #warn Dumper $const if ref $const;
 
         ref($const)
-            ? (sprintf '(%d)[%s]' =>
+            ? ((ref($const) eq 'ARRAY')
+                ? (sprintf '(%d)[%s]' =>
                     $const->[0],
                     join ', ' => map { $self->format_const($_) } $const->@[1 .. $const->[0]])
-            : not(defined($const))
+                : ((ref($const) eq 'HASH')
+                    ? (sprintf 'P[%s]<%04d>' => $const->{size}, $const->{addr})
+                    : (sprintf 'R[%s][%s]' => reftype($const), refaddr($const))))
+            : (not(defined($const))
                 ? '~'
-                : is_bool($const)
+                : (is_bool($const)
                     ? ($const ? '#t' : '#f')
-                    : Scalar::Util::looks_like_number($const)
+                    : (Scalar::Util::looks_like_number($const)
                         ? $const
-                        : '"'.$const.'"'
+                        : '"'.$const.'"')))
     }
 
     method format_code ($code, $labels, $width, $include_colors) {
