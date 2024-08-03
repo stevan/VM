@@ -17,39 +17,39 @@ my $vm = VM->new(
             VM::Inst->CONST_NUM, 3,
             VM::Inst->ALLOC_LOCAL,
 
-            # add the values to the stack
+            # add the values to the array
             VM::Inst->CONST_STR, "Joe",
-            VM::Inst->CONST_NUM, 10,
-            VM::Inst->CONST_TRUE,
-            # construct the tuple on the top of the stack
-            VM::Inst->CREATE_ARRAY, 3,
-
-            # fetch the Pointer to the top of the stack
+            VM::Inst->CONST_NUM, 0,
             VM::Inst->LOAD, 0,
-
-            # store it in our local fetching the
-            # pointer then the value
             VM::Inst->STORE_LOCAL,
 
-            # load tuple from the local
-            # and extract value from it
-            # and do this for each item
-            # in the tuple
+            VM::Inst->CONST_NUM, 10,
+            VM::Inst->CONST_NUM, 1,
+            VM::Inst->LOAD, 0,
+            VM::Inst->STORE_LOCAL,
+
+            VM::Inst->CONST_TRUE,
+            VM::Inst->CONST_NUM, 2,
+            VM::Inst->LOAD, 0,
+            VM::Inst->STORE_LOCAL,
+
+            # now print them ..
+            VM::Inst->CONST_NUM, 2,
             VM::Inst->LOAD, 0,
             VM::Inst->LOAD_LOCAL,
-            VM::Inst->ARRAY_INDEX, 0,
             VM::Inst->PRINT,
 
+            VM::Inst->CONST_NUM, 1,
             VM::Inst->LOAD, 0,
             VM::Inst->LOAD_LOCAL,
-            VM::Inst->ARRAY_INDEX, 1,
             VM::Inst->PRINT,
 
+            VM::Inst->CONST_NUM, 0,
             VM::Inst->LOAD, 0,
             VM::Inst->LOAD_LOCAL,
-            VM::Inst->ARRAY_INDEX, 2,
             VM::Inst->PRINT,
 
+            # free the array
             VM::Inst->LOAD, 0,
             VM::Inst->FREE_LOCAL,
 
