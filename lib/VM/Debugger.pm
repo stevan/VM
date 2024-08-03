@@ -76,13 +76,9 @@ class VM::Debugger::UI::Element {
         #warn Dumper $const if ref $const;
 
         ref($const)
-            ? ((ref($const) eq 'ARRAY')
-                ? (sprintf '(%d)[%s]' =>
-                    $const->[0],
-                    join ', ' => map { $self->format_const($_) } $const->@[1 .. $const->[0]])
-                : ((ref($const) eq 'HASH')
-                    ? (sprintf 'P[%s]<%04d>' => $const->{size}, $const->{addr})
-                    : (sprintf 'R[%s][%s]' => reftype($const), refaddr($const))))
+            ? ((ref($const) eq 'HASH')
+                ? (sprintf 'P[%s]<%04d>' => $const->{size}, $const->{addr})
+                : (sprintf 'R[%s][%s]' => reftype($const), refaddr($const)))
             : (not(defined($const))
                 ? '~'
                 : (is_bool($const)
