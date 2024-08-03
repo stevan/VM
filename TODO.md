@@ -5,16 +5,13 @@
 
 - Instructions for:
     - ARRAYS
-        - can they be a single type? problem: We don't have type information anymore :(
-        - if they can be of any scalar type, why have tuples?
-    - RECORDS
-    - maybe add:
-        - VECTORS (for SIMD instructions)
-        - PAIRS (for Cons Lists)
-            - these could just be 2 element tuples
-
+        - we have CREATE and INDEX, but need more now
+    - VECTORS
+        - this is homogeneous arrays (all the same type)
+        - maybe for SIMD instructions
 
 - Memory
-    - index for free empty cells
-    - compaction
-        -
+    - need to reclaim freed cells
+    - do Pointers need to be more sophisticated?
+        - should I be tracking them?
+

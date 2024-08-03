@@ -114,6 +114,9 @@ class VM::Debugger::UI::Stacked :isa(VM::Debugger::UI::Element) {
     ADJUST {
         $rect_height = List::Util::sum( map $_->rect_height, @$elements );
         $rect_width  = List::Util::max( map $_->rect_width,  @$elements );
+
+        #warn join ': ' => map $_->rect_height, @$elements;
+        #warn "rect_height: $rect_height";
     }
 
     method draw (@elements) {
@@ -171,6 +174,7 @@ class VM::Debugger::UI::Panel :isa(VM::Debugger::UI::Element) {
     field $fmt;
 
     ADJUST {
+        #warn "height: $height, contents: ".$#{$contents};
         $height = List::Util::max($height, $#{$contents});
         $fmt    = "%-".$width."s";
 
@@ -179,6 +183,12 @@ class VM::Debugger::UI::Panel :isa(VM::Debugger::UI::Element) {
             ($height + 2)          # add two to the height for the box
                 + ($title ? 2 : 0) # add two to the height for the title
         );
+
+        # bump it if wehave nothing
+        $rect[1] += 1 if $height == 0;
+
+        #warn "height: $height";
+        #warn join ': ' => @rect;
     }
 
     method rect_width  { $rect[0] }
