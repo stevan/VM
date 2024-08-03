@@ -11,10 +11,16 @@ use Time::HiRes  ();
 use VM::Inst;
 use VM::Error;
 
+use VM::Assembler;
 use VM::Debugger;
 
 class VM {
     use constant DEBUG => $ENV{DEBUG} // 0;
+
+    # TODO:
+    # add STACK_SIZE & MEM_SIZE constant
+    # (with %ENV override) and add checks
+    # for it everywhere that it is needed
 
     field $source  :param;
     field $entry   :param;
@@ -22,15 +28,16 @@ class VM {
 
     field @code    :reader;
     field @stack   :reader;
+    field @locals  :reader;
     field %labels  :reader;
 
     field @stdout  :reader;
     field @stderr  :reader;
 
-    field $pc      :reader = 0;  # program counter (points to current instruction)
-    field $ic      :reader = 0;  # instruction counter (number of instructions run)
-    field $ci      :reader = 0;  # pointer to the current instruction
-    field $fp      :reader = 0;  # frame pointer (points to the top of the current stack frame)
+    field $pc      :reader =  0; # program counter (points to current instruction)
+    field $ic      :reader =  0; # instruction counter (number of instructions run)
+    field $ci      :reader =  0; # pointer to the current instruction
+    field $fp      :reader =  0; # frame pointer (points to the top of the current stack frame)
     field $sp      :reader = -1; # stack pointer (points to the current head of the stack)
 
 
@@ -43,46 +50,15 @@ class VM {
 
     method next_op { $code[$pc++] }
 
-    method DEBUGGER {
-        say "\e[2J\e[H\n",
-            join "\n" => VM::Debugger->new(vm => $self)->draw;
-    }
-
     method assemble {
-
-        my $i = 0;
-        foreach my $line (@$source) {
-            if (blessed $line && $line isa VM::Inst::Label) {
-                $labels{$line->name} = $i;
-            }
-            else {
-                $i++;
-            }
-        }
-
-        $i = 0;
-        foreach my $line (@$source) {
-            if (blessed $line) {
-                if ( $line isa VM::Inst::Marker ) {
-                    $labels{$line->name}
-                        // die "Could not find label for marker(".$line->name.")";
-                    $i++;
-                    push @code => Scalar::Util::dualvar(
-                        $labels{$line->name},
-                        $line->name
-                    );
-                }
-            }
-            else {
-                $i++;
-                push @code => $line;
-            }
-        }
-
-        $pc = $labels{ $entry } // die "Could not find entry point($entry) in source";
-
+        my ($labels, $code) = VM::Assembler->new->assemble($source);
+        %labels = %$labels;
+        @code   = @$code;
+        $pc     = $labels{ $entry } // die "Could not find entry point($entry) in source";
         return $self;
     }
+
+    method DEBUGGER { say "\e[2J\e[H\n", join "\n" => VM::Debugger->new(vm => $self)->draw }
 
     method run {
 
@@ -230,7 +206,7 @@ class VM {
                 }
             }
             ## ------------------------------------
-            ## Load/Store local memory
+            ## Load/Store stack memory
             ## ------------------------------------
             elsif ($opcode == VM::Inst->LOAD) {
                 my $offset = $self->next_op;
@@ -239,6 +215,20 @@ class VM {
                 my $v      = $self->POP;
                 my $offset = $self->next_op;
                 $stack[$fp + $offset] = $v;
+            }
+            ## ------------------------------------
+            ## Load/Store local memory
+            ## ------------------------------------
+            elsif ($opcode == VM::Inst->LOAD_LOCAL) {
+                my $addr = $self->next_op;
+                $self->PUSH( $locals[$addr] );
+            } elsif ($opcode == VM::Inst->STORE_LOCAL) {
+                my $val  = $self->POP;
+                my $addr = $self->next_op;
+                $locals[$addr] = $val;
+            } elsif ($opcode == VM::Inst->FREE_LOCAL) {
+                my $addr = $self->next_op;
+                $locals[$addr] = undef;
             }
             ## ------------------------------------
             ## Call functions

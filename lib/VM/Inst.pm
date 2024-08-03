@@ -43,6 +43,10 @@ package VM::Inst {
             LOAD
             STORE
 
+            LOAD_LOCAL
+            STORE_LOCAL
+            FREE_LOCAL
+
             LOAD_ARG
             CALL
             RETURN

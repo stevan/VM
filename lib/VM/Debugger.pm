@@ -31,6 +31,11 @@ class VM::Debugger {
                     width => 32,
                     title => 'Code'
                 ),
+                VM::Debugger::UI::MemoryView->new(
+                    vm    => $vm,
+                    width => 32,
+                    title => 'Memory'
+                ),
                 VM::Debugger::UI::Stacked->new(
                     elements => [
                         VM::Debugger::UI::Panel->new(
@@ -189,6 +194,46 @@ class VM::Debugger::UI::Panel :isa(VM::Debugger::UI::Element) {
                 ['│ ',(' ' x $width),' │']
             }
         } 0 .. $height),
+        ['╰─',('─' x $width),'─╯'],
+    }
+}
+
+class VM::Debugger::UI::MemoryView :isa(VM::Debugger::UI::Element) {
+    field $vm    :param;
+    field $width :param;
+    field $title :param :reader = undef;
+
+    field $height = 0;
+    field @rect;
+
+    ADJUST {
+        $height = List::Util::max($height, scalar($vm->locals));
+
+        @rect = (
+            ($width  + 4),         # add four to the height for the box and indent
+            ($height + 2)          # add two to the height for the box
+                + ($title ? 2 : 0) # add two to the height for the title
+        );
+    }
+
+    method rect_width  { $rect[0] }
+    method rect_height { $rect[1] }
+
+    method draw {
+        my @locals = $vm->locals;
+
+        my $title_fmt = "%-".$width."s";
+        my $value_fmt = "%".($width - 7)."s";
+
+        map { join '' => @$_ }
+        ['╭─',('─' x $width),'─╮'],
+        ($title
+            ? (['│ ',(sprintf $title_fmt, $title),' │'],
+               ['├─',('─' x $width),              '─┤'])
+            : ()),
+        (map {
+            ['│ ',(sprintf "%05d ┊${value_fmt}" => $_, $self->format_const($locals[$_])),' │']
+        } 0 .. $#locals),
         ['╰─',('─' x $width),'─╯'],
     }
 }
