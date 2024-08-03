@@ -38,19 +38,38 @@ my $vm = VM->new(
             VM::Inst->LOAD_ARG, 1,
             VM::Inst->RETURN,
 
-
         VM::Inst->label('.main'),
 
-            # allocate 10 cells
+            # allocate 3 cells
+            VM::Inst->CONST_NUM, 3,
+            VM::Inst->ALLOC_LOCAL,
+
+            # allocate 5 cells
             VM::Inst->CONST_NUM, 5,
             VM::Inst->ALLOC_LOCAL,
 
+            # .. make one the arg
+            VM::Inst->DUP,
             # the size of the array
             VM::Inst->CONST_NUM, 5,
-
-            # swap them around for the args
             VM::Inst->CALL, VM::Inst->marker('.fill_array'), 2,
 
+            # load the 3 item array
+            VM::Inst->LOAD, 0,
+            # the size of the array
+            VM::Inst->CONST_NUM, 3,
+            VM::Inst->CALL, VM::Inst->marker('.fill_array'), 2,
+
+            VM::Inst->LOAD, 1,
+            VM::Inst->FREE_LOCAL,
+
+            # load the 3 item array
+            VM::Inst->LOAD, 1,
+            # the size of the array
+            VM::Inst->CONST_NUM, 2,
+            VM::Inst->CALL, VM::Inst->marker('.fill_array'), 2,
+
+            VM::Inst->LOAD, 0,
             VM::Inst->FREE_LOCAL,
 
             VM::Inst->HALT

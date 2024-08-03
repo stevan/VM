@@ -76,9 +76,7 @@ class VM::Debugger::UI::Element {
         #warn Dumper $const if ref $const;
 
         ref($const)
-            ? ((ref($const) eq 'HASH')
-                ? (sprintf 'P[%s]<%04d>' => $const->{size}, $const->{addr})
-                : (sprintf 'R[%s][%s]' => reftype($const), refaddr($const)))
+            ? (sprintf '*[%s]<%04d>' => $const->{size}, $const->{addr})
             : (not(defined($const))
                 ? '~'
                 : (is_bool($const)
