@@ -43,10 +43,10 @@ package VM::Inst {
             LOAD
             STORE
 
-            ALLOC_LOCAL
-            LOAD_LOCAL
-            STORE_LOCAL
-            FREE_LOCAL
+            ALLOC_MEM
+            LOAD_MEM
+            STORE_MEM
+            FREE_MEM
 
             LOAD_ARG
             CALL

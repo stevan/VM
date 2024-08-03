@@ -202,7 +202,7 @@ class VM {
             # TODO: add memory error handling here
             # - OOM
             # - BOUNDS ERROR
-            elsif ($opcode == VM::Inst->ALLOC_LOCAL) {
+            elsif ($opcode == VM::Inst->ALLOC_MEM) {
 
                 my $size = $self->POP;
                 my $addr = scalar @locals;
@@ -212,7 +212,7 @@ class VM {
 
                 $self->PUSH( +{ addr => $addr => size => $size } );
 
-            } elsif ($opcode == VM::Inst->LOAD_LOCAL) {
+            } elsif ($opcode == VM::Inst->LOAD_MEM) {
                 my $ptr    = $self->POP;
                 my $offset = $self->POP;
 
@@ -220,7 +220,7 @@ class VM {
 
                 $self->PUSH( $locals[ $ptr->{addr} + $offset ] );
 
-            } elsif ($opcode == VM::Inst->STORE_LOCAL) {
+            } elsif ($opcode == VM::Inst->STORE_MEM) {
                 my $ptr    = $self->POP;
                 my $offset = $self->POP;
                 my $value  = $self->POP;
@@ -231,7 +231,7 @@ class VM {
 
                 $locals[ $ptr->{addr} + $offset ] = $value;
 
-            } elsif ($opcode == VM::Inst->FREE_LOCAL) {
+            } elsif ($opcode == VM::Inst->FREE_MEM) {
                 my $ptr = $self->POP;
 
                 $locals[ $ptr->{addr} + $_ ] = undef
