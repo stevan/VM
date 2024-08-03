@@ -79,7 +79,7 @@ class VM {
             my $opcode = $self->next_op;
 
             unless (defined $opcode) {
-                $error   = VM::Errors->UNEXPECTED_END_OF_CODE;
+                $error = VM::Errors->UNEXPECTED_END_OF_CODE;
                 goto ERROR;
             }
 
@@ -118,7 +118,7 @@ class VM {
                 my $b = $self->POP;
                 my $a = $self->POP;
                 if ( $b == 0 ) {
-                    $error   = VM::Errors->ILLEGAL_DIVISION_BY_ZERO;
+                    $error = VM::Errors->ILLEGAL_DIVISION_BY_ZERO;
                     goto ERROR;
                 }
                 # TODO : handle div by zero error here
@@ -127,7 +127,7 @@ class VM {
                 my $b = $self->POP;
                 my $a = $self->POP;
                 if ( $b == 0 ) {
-                    $error   = VM::Errors->ILLEGAL_MOD_BY_ZERO;
+                    $error = VM::Errors->ILLEGAL_MOD_BY_ZERO;
                     goto ERROR;
                 }
                 $self->PUSH( $a % $b );
@@ -219,6 +219,9 @@ class VM {
             ## ------------------------------------
             ## Load/Store local memory
             ## ------------------------------------
+            # TODO: add memory error handling here
+            # - OOM
+            # - BOUNDS ERROR
             elsif ($opcode == VM::Inst->LOAD_LOCAL) {
                 my $addr = $self->next_op;
                 $self->PUSH( $locals[$addr] );
@@ -281,7 +284,7 @@ class VM {
             }
             ## ------------------------------------
             else {
-                $error   = VM::Errors->UNKNOWN_OPCODE;
+                $error = VM::Errors->UNKNOWN_OPCODE;
                 goto ERROR;
             }
 
