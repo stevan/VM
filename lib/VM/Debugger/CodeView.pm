@@ -36,7 +36,7 @@ class VM::Debugger::CodeView :isa(VM::Debugger::UI::View) {
 
         $inactive_label_fmt = "\e[0;36m${count_fmt} ◇ ${label_fmt}\e[0m";
         $active_label_fmt   = "\e[0;36m\e[7m${count_fmt} ▶ ${label_fmt}\e[0m";
-        $active_fmt         = "\e[0;36m\e[7m${count_fmt} ▶ ${value_fmt}\e[0m";
+        $active_fmt         = "\e[0;33m\e[7m${count_fmt} ▶ ${value_fmt}\e[0m";
         $inactive_fmt       = "${count_fmt} ┊ ${value_fmt}";
         $deadcode_fmt       = "\e[38;5;240m${count_fmt} ┊ ${value_fmt}\e[0m";
 
