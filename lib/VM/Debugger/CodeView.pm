@@ -20,21 +20,25 @@ class VM::Debugger::CodeView :isa(VM::Debugger::UI::View) {
     field $title_fmt;
     field $count_fmt;
     field $value_fmt;
-
     field $label_fmt;
+
+    field $inactive_label_fmt;
+    field $active_label_fmt;
     field $active_fmt;
     field $inactive_fmt;
     field $deadcode_fmt;
 
     ADJUST {
-        $count_fmt    = "%05d";
-        $title_fmt    = "%-${width}s";
-        $value_fmt    = "%".($width - 8)."s"; # remove 8, 5 for counter and 3 for divider
+        $count_fmt = "%05d";
+        $title_fmt = "%-${width}s";
+        $value_fmt = "%" .($width - 8)."s"; # remove 8, 5 for counter and 3 for divider
+        $label_fmt = "%-".($width - 8)."s"; # remove 8, 5 for counter and 3 for divider
 
-        $label_fmt    = "\e[0;36m\e[4m${title_fmt}\e[0m";
-        $active_fmt   = "\e[0;33m\e[1m${count_fmt} ▶ ${value_fmt}\e[0m";
-        $inactive_fmt = "${count_fmt} ┊ ${value_fmt}";
-        $deadcode_fmt = "\e[38;5;240m${count_fmt} ┊ ${value_fmt}\e[0m";
+        $inactive_label_fmt = "\e[0;36m${count_fmt} ◇ ${label_fmt}\e[0m";
+        $active_label_fmt   = "\e[0;36m\e[7m${count_fmt} ▶ ${label_fmt}\e[0m";
+        $active_fmt         = "\e[0;35m\e[7m${count_fmt} ▶ ${value_fmt}\e[0m";
+        $inactive_fmt       = "${count_fmt} ┊ ${value_fmt}";
+        $deadcode_fmt       = "\e[38;5;240m${count_fmt} ┊ ${value_fmt}\e[0m";
 
     }
 
@@ -63,23 +67,18 @@ class VM::Debugger::CodeView :isa(VM::Debugger::UI::View) {
         my %labels     = $vm->labels->%*;
         my %rev_labels = reverse %labels;
 
-        my @out;
-
-        if (exists $rev_labels{$line_num}) {
-            push @out => ['│ ',(sprintf $label_fmt => $rev_labels{$line_num}),' │'],;
-        }
-
         if ($vm->ci == $line_num) {
-            push @out => ['│ ',
-                (sprintf $active_fmt => $line_num, $self->format_opcode($data, \%labels, ($width - 8), false)),
-            ' │']
+            #if (exists $rev_labels{$line_num}) {
+            #    return ['│ ',(sprintf $active_label_fmt => $line_num, $rev_labels{$line_num}),' │'],;
+            #}
+            return ['│ ',(sprintf $active_fmt => $line_num, $self->format_opcode($data, \%labels, ($width - 8), false)),' │']
         } else {
-            push @out => ['│ ',
-                (sprintf $inactive_fmt => $line_num, $self->format_opcode($data, \%labels, ($width - 8), true)),
-            ' │']
+            #if (exists $rev_labels{$line_num}) {
+            #    return ['│ ',(sprintf $inactive_label_fmt => $line_num, $rev_labels{$line_num}),' │'],;
+            #}
+            return ['│ ',(sprintf $inactive_fmt => $line_num, $self->format_opcode($data, \%labels, ($width - 8), true)),' │']
         }
 
-        return @out;
     }
 
     method draw {
@@ -98,21 +97,11 @@ class VM::Debugger::CodeView :isa(VM::Debugger::UI::View) {
             #warn "CI: ".$vm->ci;
             my $offset = 0;
 
-            if ($vm->ci > $code_height) {
-                $offset = $vm->ci - $fixed_size;
+            if ($vm->ci >= $code_height) {
+                $offset = $vm->ci - $code_height;
             }
 
             @code_idxs = ($offset .. ($fixed_size + $offset));
-        }
-
-        my %labels     = $vm->labels->%*;
-        my %rev_labels = reverse %labels;
-
-        my $num_labels = scalar grep defined, @rev_labels{ @code_idxs };
-        if ($num_labels) {
-            #warn "BEFORE -($num_labels): ", join ", " => @code_idxs;
-            splice @code_idxs, -$num_labels;
-            #warn "AFTER: ", join ", " => @code_idxs;
         }
 
         map { join '' => @$_ }
