@@ -14,67 +14,61 @@ use VM::Error;
 
 class VM::Debugger {
 
-    field $vm :param;
-
-    field $ui;
+    field $root_view   :reader;
+    field $stack_view  :reader;
+    field $code_view   :reader;
+    field $memory_view :reader;
 
     ADJUST {
-        $ui = VM::Debugger::UI::Zipped->new(
-            elements => [
-                VM::Debugger::UI::StackView->new(
-                    vm    => $vm,
-                    width => 32,
-                    title => 'Stack'
-                ),
-                VM::Debugger::UI::CodeView->new(
-                    vm    => $vm,
-                    width => 32,
-                    title => 'Code'
-                ),
-                VM::Debugger::UI::MemoryView->new(
-                    vm    => $vm,
-                    width => 32,
-                    title => 'Memory'
-                ),
-                VM::Debugger::UI::Stacked->new(
-                    elements => [
-                        VM::Debugger::UI::Panel->new(
-                            width    => 32,
-                            title    => 'Error',
-                            contents => [ $vm->error ]
-                        ),
-                        VM::Debugger::UI::Panel->new(
-                            width    => 32,
-                            title    => 'STDOUT',
-                            contents => [ $vm->stdout ]
-                        ),
-                        VM::Debugger::UI::Panel->new(
-                            width    => 32,
-                            title    => 'STDERR',
-                            contents => [ $vm->stderr ]
-                        ),
-                    ]
-                )
+        $code_view   = VM::Debugger::UI::CodeView   ->new( width => 32, title => 'Code'   );
+        $stack_view  = VM::Debugger::UI::StackView  ->new( width => 32, title => 'Stack'  );
+        $memory_view = VM::Debugger::UI::MemoryView ->new( width => 32, title => 'Memory' );
+
+        $root_view = VM::Debugger::UI::ZippedViews->new(
+            views => [
+                $code_view,
+                $stack_view,
+                $memory_view,
             ]
-        );
+        )
     }
 
-    method rect_height { $ui->rect_height }
-    method rect_widht  { $ui->rect_widht  }
-    method draw        { $ui->draw        }
+    method rect_height { $root_view->rect_height }
+    method rect_widht  { $root_view->rect_widht  }
+    method display ($snapshot) {
+        $root_view->update($snapshot);
+        join "\n" => $root_view->draw;
+    }
 }
 
+## ----------------------------------------------------------------------------
+## Base View
+## ----------------------------------------------------------------------------
 
-class VM::Debugger::UI::Element {
-    method rect_width;
-    method rect_height;
+class VM::Debugger::UI::View {
+    field $snapshot :reader;
+
+    field $rect_height;
+    field $rect_width;
+
+    method rect_height :lvalue { $rect_height }
+    method rect_width  :lvalue { $rect_width  }
+
+    # snapshots
+
+    method update ($snap) {
+        $snapshot = $snap;
+        $self->recalculate;
+    }
+
+    # abstract methods
+
+    method recalculate;
     method draw;
 
+    # utilities
 
     method format_const ($const) {
-        #use Data::Dumper;
-        #warn Dumper $const if ref $const;
-
         ref($const)
             ? (sprintf '*[%s]<%04d>' => $const->{size}, $const->{addr})
             : (not(defined($const))
@@ -86,7 +80,7 @@ class VM::Debugger::UI::Element {
                         : '"'.$const.'"')))
     }
 
-    method format_code ($code, $labels, $width, $include_colors) {
+    method format_opcode ($code, $labels, $width, $include_colors) {
         my $opcode_fmt = "%-${width}s";
         my $value_fmt  = "%${width}s";
 
@@ -99,50 +93,47 @@ class VM::Debugger::UI::Element {
     }
 }
 
-class VM::Debugger::UI::Stacked :isa(VM::Debugger::UI::Element) {
-    field $elements :param :reader;
+## ----------------------------------------------------------------------------
+## Combiners
+## ----------------------------------------------------------------------------
 
-    field $rect_height :reader;
-    field $rect_width  :reader;
+class VM::Debugger::UI::StackedViews :isa(VM::Debugger::UI::View) {
+    field $views :param :reader;
 
-    ADJUST {
-        $rect_height = List::Util::sum( map $_->rect_height, @$elements );
-        $rect_width  = List::Util::max( map $_->rect_width,  @$elements );
+    method recalculate {
+        $_->update($self->snapshot) foreach @$views;
 
-        #warn join ': ' => map $_->rect_height, @$elements;
-        #warn "rect_height: $rect_height";
+        $self->rect_height = List::Util::sum( map $_->rect_height, @$views );
+        $self->rect_width  = List::Util::max( map $_->rect_width,  @$views );
     }
 
-    method draw (@elements) {
-        my $max_height = $rect_height;
+    method draw (@views) {
+        my $max_height = $self->rect_height;
 
         my @out;
-        foreach my $element (@$elements) {
+        foreach my $element (@$views) {
             push @out => $element->draw;
         }
         return @out;
     }
 }
 
-class VM::Debugger::UI::Zipped :isa(VM::Debugger::UI::Element) {
-    field $elements :param :reader;
-    field $divider  :param = ' ';
+class VM::Debugger::UI::ZippedViews :isa(VM::Debugger::UI::View) {
+    field $views   :param :reader;
+    field $divider :param = ' ';
 
-    field $rect_height :reader;
-    field $rect_width  :reader;
+    method recalculate {
+        $_->update($self->snapshot) foreach @$views;
 
-    ADJUST {
-        $rect_height = List::Util::max( map $_->rect_height, @$elements );
-        $rect_width  = List::Util::sum( map $_->rect_width,  @$elements );
+        $self->rect_height = List::Util::max( map $_->rect_height, @$views );
+        $self->rect_width  = List::Util::sum( map $_->rect_width,  @$views );
     }
 
-    method draw (@elements) {
-        my $max_height = $rect_height;
-
-        #die join ', ' => (map $_->rect_height, @$elements), ":", $max_height;
+    method draw (@views) {
+        my $max_height = $self->rect_height;
 
         my @out;
-        foreach my $element (@$elements) {
+        foreach my $element (@$views) {
             my @drawn = $element->draw;
             my $blank = (' ' x $element->rect_width);
 
@@ -158,77 +149,24 @@ class VM::Debugger::UI::Zipped :isa(VM::Debugger::UI::Element) {
     }
 }
 
-class VM::Debugger::UI::Panel :isa(VM::Debugger::UI::Element) {
-    field $width       :param;
-    field $height      :param = 0;
-    field $title       :param :reader = undef;
-    field $contents    :param :reader = [];
+## ----------------------------------------------------------------------------
+##
+## ----------------------------------------------------------------------------
 
-    field @rect;
-    field $fmt;
-
-    ADJUST {
-        #warn "height: $height, contents: ".$#{$contents};
-        $height = List::Util::max($height, $#{$contents});
-        $fmt    = "%-".$width."s";
-
-        @rect = (
-            ($width  + 4),         # add four to the height for the box and indent
-            ($height + 2)          # add two to the height for the box
-                + ($title ? 2 : 0) # add two to the height for the title
-        );
-
-        # bump it if wehave nothing
-        $rect[1] += 1 if $height == 0;
-
-        #warn "height: $height";
-        #warn join ': ' => @rect;
-    }
-
-    method rect_width  { $rect[0] }
-    method rect_height { $rect[1] }
-
-    method draw {
-        map { join '' => @$_ }
-        ['╭─',('─' x $width),'─╮'],
-        ($title
-            ? (['│ ',(sprintf $fmt, $title),' │'],
-               ['├─',('─' x $width),                '─┤'])
-            : ()),
-        (map {
-            if (defined(my $v = $contents->[$_])) {
-                ['│ ',(sprintf $fmt, $self->format_const($v)),' │']
-            } else {
-                ['│ ',(' ' x $width),' │']
-            }
-        } 0 .. $height),
-        ['╰─',('─' x $width),'─╯'],
-    }
-}
-
-class VM::Debugger::UI::MemoryView :isa(VM::Debugger::UI::Element) {
-    field $vm    :param;
+class VM::Debugger::UI::MemoryView :isa(VM::Debugger::UI::View) {
     field $width :param;
     field $title :param :reader = undef;
 
-    field $height = 0;
-    field @rect;
-
-    ADJUST {
-        $height = List::Util::max($height, scalar($vm->locals));
-
-        @rect = (
-            ($width  + 4),         # add four to the height for the box and indent
-            ($height + 2)          # add two to the height for the box
-                + ($title ? 2 : 0) # add two to the height for the title
-        );
+    method recalculate {
+        $self->rect_width   = $width + 4;   # add four to the width for the box and indent
+        $self->rect_height  = 2;            # start with two for the height for the box
+        $self->rect_height += 2 if $title; # add two for the height of the title bar
+        # add the number of memory cells to it
+        $self->rect_height += scalar $self->snapshot->memory->@*;
     }
 
-    method rect_width  { $rect[0] }
-    method rect_height { $rect[1] }
-
     method draw {
-        my @locals = $vm->locals;
+        my @memory = $self->snapshot->memory->@*;
 
         my $title_fmt = "%-".$width."s";
         my $value_fmt = "%".($width - 7)."s";
@@ -240,35 +178,27 @@ class VM::Debugger::UI::MemoryView :isa(VM::Debugger::UI::Element) {
                ['├─',('─' x $width),              '─┤'])
             : ()),
         (map {
-            ['│ ',(sprintf "%05d ┊${value_fmt}" => $_, $self->format_const($locals[$_])),' │']
-        } 0 .. $#locals),
+            ['│ ',(sprintf "%05d ┊${value_fmt}" => $_, $self->format_const($memory[$_])),' │']
+        } 0 .. $#memory),
         ['╰─',('─' x $width),'─╯'],
     }
 }
 
-class VM::Debugger::UI::StackView :isa(VM::Debugger::UI::Element) {
-    field $vm    :param;
+class VM::Debugger::UI::StackView :isa(VM::Debugger::UI::View) {
     field $width :param;
     field $title :param :reader = undef;
 
-    field $height = 0;
-    field @rect;
-
-    ADJUST {
-        $height = List::Util::max($height, scalar($vm->stack));
-
-        @rect = (
-            ($width  + 4),         # add four to the height for the box and indent
-            ($height + 2)          # add two to the height for the box
-                + ($title ? 2 : 0) # add two to the height for the title
-        );
+    method recalculate {
+        $self->rect_width   = $width + 4;   # add four to the width for the box and indent
+        $self->rect_height  = 2;            # start with two for the height for the box
+        $self->rect_height += 2 if $title; # add two for the height of the title bar
+        # add the number of stack elements to it
+        $self->rect_height += scalar $self->snapshot->stack->@*;
     }
 
-    method rect_width  { $rect[0] }
-    method rect_height { $rect[1] }
-
     method draw {
-        my @stack = $vm->stack;
+        my $vm    = $self->snapshot;
+        my @stack = $vm->stack->@*;
 
         my $title_fmt = "%-".$width."s";
         my $value_fmt = "%".($width - 7)."s";
@@ -305,72 +235,103 @@ class VM::Debugger::UI::StackView :isa(VM::Debugger::UI::Element) {
                         ))),
                 ' │'
             ]
-        } 0 .. $height),
+        } 0 .. $#stack),
         ['╰─',('─' x $width),'─╯'],
     }
 }
 
 
-class VM::Debugger::UI::CodeView :isa(VM::Debugger::UI::Element) {
-    field $vm    :param;
+class VM::Debugger::UI::CodeView :isa(VM::Debugger::UI::View) {
     field $width :param;
     field $title :param :reader = undef;
 
-    field $rect_height :reader;
-    field $rect_width  :reader;
+    method recalculate {
+        $self->rect_width   = $width + 4;   # add four to the width for the box and indent
+        $self->rect_height  = 2;            # start with two for the height for the box
+        $self->rect_height += 2 if $title; # add two for the height of the title bar
 
-    ADJUST {
-        $rect_width  = $width + 4;   # add four to the width for the box and indent
-        $rect_height = 2;            # start with two for the height for the box
-        $rect_height += 2 if $title; # add two for the height of the title bar
-
-        my @code   = $vm->code;
-        my %labels = $vm->labels;
-        my @labels = keys %labels;
-
-        $rect_height += scalar @code;
-        $rect_height += (scalar(@labels) * 3);
+        # add the stuff needed here ...
+        $self->rect_height = 60;
     }
 
+    use Data::Dumper;
+
     method draw {
-        my @code       = $vm->code;
-        my %labels     = $vm->labels;
+        my $vm         = $self->snapshot;
+        my @code       = $vm->code->@*;
+        my %labels     = $vm->labels->%*;
         my %rev_labels = reverse %labels;
 
+        my @sorted_idxs = sort { $a <=> $b } keys %rev_labels;
+        my @sorted_lbls = @rev_labels{ @sorted_idxs };
+
+        my $code_length = $#code;
+
+        my @collected;
+
+        if (scalar @sorted_idxs == 1) {
+            push @collected => [ $sorted_lbls[0], 0, $code_length ];
+        }
+        else {
+            while (@sorted_idxs) {
+                my $left_idx  = shift   @sorted_idxs;
+                my $right_idx = defined $sorted_idxs[0] ? $sorted_idxs[0] - 1 : $code_length;
+                my $label     = shift   @sorted_lbls;
+
+                #warn "label: $label, l: $left_idx r: $right_idx";
+
+                push @collected => [ $label, $left_idx, $right_idx ];
+            }
+        }
+
+        #warn Dumper \@collected;
+
+        my $top        = ['╭─',('─' x $width),'─╮'];
+        my $bottom     = ['╰─',('─' x $width),'─╯'];
         my $full_fmt   = "%-".$width."s";
         my $count_fmt  = "%04d";
 
-        map { join '' => @$_ }
-        ['╭─',('─' x $width),'─╮'],
-        ($title
-            ? (['│ ',(sprintf $full_fmt, $title),' │'],
-               ['├─',('─' x $width),              '─┤'])
-            : ()),
-        (map {
+        my sub draw_title ($t) {
+            (['│ ',(sprintf "\e[0;36m\e[1m${full_fmt}\e[0m" => $t),' │'],
+             ['├─',('─' x $width),                                 '─┤'])
+        }
 
+        my sub draw_code ($i) {
             my @out;
-            if (my $label = $rev_labels{$_}) {
-                push @out => ['├─',('─' x $width),'─┤'] unless $_ == 0;
-                push @out => ['│ ',(sprintf "\e[0;36m\e[1m${full_fmt}\e[0m" => $label),' │'];
-                push @out => ['├─',('─' x $width),'─┤'];
-            }
-
-            if ($vm->ci == $_) {
+            if ($vm->ci == $i) {
                 push @out => ['│ ',
-                    (sprintf "\e[0;33m\e[1m${count_fmt} ▶ %s" => $_, $self->format_code($code[$_], \%labels, ($width - 7), false)),
+                    (sprintf "\e[0;33m\e[1m${count_fmt} ▶ %s" => $i, $self->format_opcode($code[$i], \%labels, ($width - 7), false)),
                 ' │'];
             } else {
                 push @out => ['│ ',
-                    (sprintf "${count_fmt} ┊ %s" => $_, $self->format_code($code[$_], \%labels, ($width - 7), true)),
+                    (sprintf "${count_fmt} ┊ %s" => $i, $self->format_opcode($code[$i], \%labels, ($width - 7), true)),
                 ' │'];
             }
+            return @out;
+        }
 
-            @out;
-        } 0 .. $#code),
-        ['╰─',('─' x $width),'─╯'],
+        my sub draw_labels {
+            my @out;
+            foreach my $group (@collected) {
+                my ($label, $start, $end) = @$group;
+
+                push @out => $top;
+                push @out => draw_title($label);
+                #warn join ', ' => $vm->ci, $label, $start, $end;
+                if ($vm->ci > $start && $vm->ci <= $end) {
+                    push @out => map { draw_code($_) } ($start .. $end);
+                    push @out => $bottom;
+                } else {
+                    pop @out;
+                    push @out => $bottom;
+                }
+            }
+            return @out;
+        }
+
+        map { join '' => @$_ } draw_labels();
     }
 }
-
 
 __END__
 

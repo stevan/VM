@@ -14,6 +14,25 @@ use VM::Error;
 use VM::Assembler;
 use VM::Debugger;
 
+class VM::Snapshot {
+    field $code    :param :reader;
+    field $stack   :param :reader;
+    field $memory  :param :reader;
+    field $labels  :param :reader;
+
+    field $stdout  :param :reader;
+    field $stderr  :param :reader;
+
+    field $pc      :param :reader;
+    field $ic      :param :reader;
+    field $ci      :param :reader;
+    field $fp      :param :reader;
+    field $sp      :param :reader;
+
+    field $running :param :reader;
+    field $error   :param :reader;
+}
+
 class VM {
     use constant DEBUG => $ENV{DEBUG} // 0;
 
@@ -26,22 +45,32 @@ class VM {
     field $entry   :param;
     field $clock   :param = $ENV{CLOCK};
 
-    field @code    :reader;
-    field @stack   :reader;
-    field @locals  :reader;
-    field %labels  :reader;
+    field @code;
+    field @stack;
+    field @memory;
+    field %labels;
 
-    field @stdout  :reader;
-    field @stderr  :reader;
+    field @stdout;
+    field @stderr;
 
-    field $pc      :reader =  0; # program counter (points to current instruction)
-    field $ic      :reader =  0; # instruction counter (number of instructions run)
-    field $ci      :reader =  0; # pointer to the current instruction
-    field $fp      :reader =  0; # frame pointer (points to the top of the current stack frame)
-    field $sp      :reader = -1; # stack pointer (points to the current head of the stack)
+    field $pc =  0; # program counter (points to current instruction)
+    field $ic =  0; # instruction counter (number of instructions run)
+    field $ci =  0; # pointer to the current instruction
+    field $fp =  0; # frame pointer (points to the top of the current stack frame)
+    field $sp = -1; # stack pointer (points to the current head of the stack)
 
     field $running :reader = false;
     field $error   :reader = undef;
+
+    field $debugger;
+    field $assembler;
+
+    ADJUST {
+        $debugger  = VM::Debugger->new if DEBUG;
+        $assembler = VM::Assembler->new;
+    }
+
+    ## --------------------------------
 
     method PUSH ($v) { $stack[++$sp] = $v }
     method POP       { $stack[$sp--]      }
@@ -49,26 +78,61 @@ class VM {
 
     method next_op { $code[$pc++] }
 
+    ## --------------------------------
+
+    method snapshot {
+        return VM::Snapshot->new(
+            code    =>  [ @code   ],
+            stack   =>  [ @stack  ],
+            memory  =>  [ @memory ],
+            labels  => +{ %labels },
+            stdout  =>  [ @stdout ],
+            stderr  =>  [ @stderr ],
+            pc      => $pc,
+            ic      => $ic,
+            ci      => $ci,
+            fp      => $fp,
+            sp      => $sp,
+            running => $running,
+            error   => $error,
+        )
+    }
+
+    method reset {
+        @code   = ();
+        @stack  = ();
+        @memory = ();
+        %labels = ();
+
+        @stdout = ();
+        @stderr = ();
+
+        $pc =  0;
+        $ic =  0;
+        $ci =  0;
+        $fp =  0;
+        $sp = -1;
+
+        $running = false;
+        $error   = undef;
+    }
+
     method assemble {
-        my ($labels, $code) = VM::Assembler->new->assemble($source);
+        my ($labels, $code) = $assembler->assemble($source);
+        $self->reset;
         %labels = %$labels;
         @code   = @$code;
         $pc     = $labels{ $entry } // die "Could not find entry point($entry) in source";
         return $self;
     }
 
-    method DEBUGGER { say "\e[2J\e[H\n", join "\n" => VM::Debugger->new(vm => $self)->draw }
+    ## --------------------------------
+
+
 
     method run {
 
-        $SIG{INT} = sub {
-            say "\e[?25h";
-            die "Interuptted!";
-        };
-
-        if (DEBUG) {
-            say "\e[?1049h\e[?25l\e[2J\e[H\n";
-        }
+        $SIG{INT} = sub { die "Interuptted!"; };
 
         $error   = undef;
         $running = true;
@@ -205,9 +269,9 @@ class VM {
             elsif ($opcode == VM::Inst->ALLOC_MEM) {
 
                 my $size = $self->POP;
-                my $addr = scalar @locals;
+                my $addr = scalar @memory;
 
-                $locals[$addr + $_] = undef
+                $memory[$addr + $_] = undef
                     foreach 0 .. ($size - 1);
 
                 $self->PUSH( +{ addr => $addr => size => $size } );
@@ -218,7 +282,7 @@ class VM {
 
                 # TODO: add check that offset is not greater than length
 
-                $self->PUSH( $locals[ $ptr->{addr} + $offset ] );
+                $self->PUSH( $memory[ $ptr->{addr} + $offset ] );
 
             } elsif ($opcode == VM::Inst->STORE_MEM) {
                 my $ptr    = $self->POP;
@@ -229,12 +293,12 @@ class VM {
 
                 # TODO: add check that offset is not greater than length
 
-                $locals[ $ptr->{addr} + $offset ] = $value;
+                $memory[ $ptr->{addr} + $offset ] = $value;
 
             } elsif ($opcode == VM::Inst->FREE_MEM) {
                 my $ptr = $self->POP;
 
-                $locals[ $ptr->{addr} + $_ ] = undef
+                $memory[ $ptr->{addr} + $_ ] = undef
                     foreach 0 .. ($ptr->{size} - 1);
             }
             ## ------------------------------------
@@ -294,25 +358,23 @@ class VM {
 
             $ic++;
 
+        ERROR:
+            if ($error) {
+                $running = false;
+            }
+
             if (DEBUG) {
-                $self->DEBUGGER;
+                say "\e[2J\e[H\n";
+                say $debugger->display( $self->snapshot );
+
                 if ($clock) {
                     Time::HiRes::sleep( $clock );
                 } else {
                     my $x = <>;
                 }
             }
-
-        ERROR:
-            if ($error) {
-                $running = false;
-                $self->DEBUGGER if DEBUG;
-            }
         }
 
-        if (DEBUG) {
-            say "\e[?25h";
-        }
     }
 
 }
