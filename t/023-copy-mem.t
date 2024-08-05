@@ -35,8 +35,7 @@ my $vm = VM->new(
 
             VM::Inst->label('.fill_array.loop.exit'),
 
-            VM::Inst->LOAD_ARG, 1,
-            VM::Inst->RETURN,
+            VM::Inst->RETURN, 0,
 
         VM::Inst->label('.main'),
 
@@ -67,6 +66,15 @@ my $vm = VM->new(
             VM::Inst->LOAD, 1,
             VM::Inst->LOAD, 0,
             VM::Inst->COPY_MEM,
+
+            VM::Inst->LOAD, 2,
+            VM::Inst->FREE_MEM,
+
+            VM::Inst->LOAD, 1,
+            VM::Inst->FREE_MEM,
+
+            VM::Inst->LOAD, 0,
+            VM::Inst->FREE_MEM,
 
             VM::Inst->HALT
     ]
