@@ -26,11 +26,13 @@ class VM::Debugger::IOView :isa(VM::Debugger::UI::View) {
     }
 
     method draw {
+        my @lines = $self->snapshot->$from->@*;
+
         map { join '' => @$_ }
                ['╭─',('─' x $width),                 '─╮'],
                ['│ ',(sprintf "%-${width}s", $title),' │'],
                ['├─',('─' x $width),                 '─┤'],
-        (map { ['│ ',(sprintf "%-${width}s" => $_),  ' │'] } $self->snapshot->$from->@*),
+        (map { ['│ ',(sprintf "%-${width}.${width}s" => $_),  ' │'] } @lines),
                ['╰─',('─' x $width),                 '─╯'],
     }
 }

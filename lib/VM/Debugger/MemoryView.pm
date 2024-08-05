@@ -21,11 +21,15 @@ class VM::Debugger::MemoryView :isa(VM::Debugger::UI::View) {
         $self->rect_height  = 2;            # start with two for the height for the box
         $self->rect_height += 2 if $title; # add two for the height of the title bar
         # add the number of memory cells to it
-        $self->rect_height += scalar $self->snapshot->memory->@*;
+        $self->rect_height +=
+            (scalar $self->snapshot->memory->@*) + 5 +
+            (scalar $self->snapshot->pointers->@*);
+
     }
 
     method draw {
-        my @memory = $self->snapshot->memory->@*;
+        my @memory   = $self->snapshot->memory->@*;
+        my @pointers = $self->snapshot->pointers->@*;
 
         my $title_fmt = "%-".$width."s";
         my $value_fmt = "%".($width - 7)."s";
@@ -39,6 +43,12 @@ class VM::Debugger::MemoryView :isa(VM::Debugger::UI::View) {
         (map {
             ['│ ',(sprintf "%05d ┊${value_fmt}" => $_, $self->format_const($memory[$_])),' │']
         } 0 .. $#memory),
+        ['├─',('─' x $width),'─┤'],
+        ['│ ',(sprintf $title_fmt, 'Pointers'),' │'],
+        ['├─',('─' x $width),'─┤'],
+        (map {
+            ['│ ',(sprintf "%05d ┊${value_fmt}" => $_, $self->format_const($pointers[$_])),' │']
+        } 0 .. $#pointers),
         ['╰─',('─' x $width),'─╯'],
     }
 }

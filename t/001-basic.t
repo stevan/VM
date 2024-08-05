@@ -9,7 +9,7 @@ my $vm = VM->new(
     entry  => '.main',
     source => [
         VM::Inst->label('.greet'),
-            VM::Inst->CONST_STR, "Hello, ",
+            VM::Inst->CONST_STR, "Hello, this is the best thing in the world",
             VM::Inst->LOAD_ARG, 0,
             VM::Inst->CONCAT_STR,
             VM::Inst->CONST_STR, "... hi!",

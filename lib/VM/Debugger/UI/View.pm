@@ -45,7 +45,8 @@ class VM::Debugger::UI::View {
                     ? ($const ? '#t' : '#f')
                     : (Scalar::Util::looks_like_number($const)
                         ? $const
-                        : '"'.$const.'"')))
+                        : (length($const) > 20
+                            ? sprintf(('"%-.20s~'), $const)
+                            : sprintf(('"%s"'),      $const)))))
     }
 }
-

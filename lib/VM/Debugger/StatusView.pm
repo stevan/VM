@@ -48,7 +48,14 @@ class VM::Debugger::StatusView :isa(VM::Debugger::UI::View) {
        ['├─',('─' x $width),'─┤'],
        ['│ ',sprintf("%-${width}s" => "String Table"),' │'],
        ['├─',('─' x $width),'─┤'],
-       (map { ['│ ',sprintf("%05d ┊ %-".($width - 8)."s" => $_, '"'.$strings[$_].'"'),' │'] } 0 .. $#strings),
+       (map {
+            ['│ ',sprintf(
+                    (length($strings[$_]) > ($width - 8)
+                        ? "%05d ┊ %-".($width - 9).".".($width - 9)."s~"
+                        : "%05d ┊ %-".($width - 8)."s"),
+                    ($_, '"'.$strings[$_].'"')
+            ),' │']
+        } 0 .. $#strings),
        ['╰─',('─' x $width),'─╯'],
     }
 }

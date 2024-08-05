@@ -15,23 +15,24 @@ use VM::Assembler;
 use VM::Debugger;
 
 class VM::Snapshot {
-    field $code    :param :reader;
-    field $stack   :param :reader;
-    field $memory  :param :reader;
-    field $labels  :param :reader;
-    field $strings :param :reader;
+    field $code     :param :reader;
+    field $stack    :param :reader;
+    field $memory   :param :reader;
+    field $labels   :param :reader;
+    field $strings  :param :reader;
+    field $pointers :param :reader;
 
-    field $stdout  :param :reader;
-    field $stderr  :param :reader;
+    field $stdout   :param :reader;
+    field $stderr   :param :reader;
 
-    field $pc      :param :reader;
-    field $ic      :param :reader;
-    field $ci      :param :reader;
-    field $fp      :param :reader;
-    field $sp      :param :reader;
+    field $pc       :param :reader;
+    field $ic       :param :reader;
+    field $ci       :param :reader;
+    field $fp       :param :reader;
+    field $sp       :param :reader;
 
-    field $running :param :reader;
-    field $error   :param :reader;
+    field $running  :param :reader;
+    field $error    :param :reader;
 }
 
 class VM {
@@ -51,6 +52,7 @@ class VM {
     field @memory;
     field %labels;
     field @strings;
+    field @pointers;
 
     field @stdout;
     field @stderr;
@@ -84,29 +86,31 @@ class VM {
 
     method snapshot {
         return VM::Snapshot->new(
-            code    =>  [ @code    ],
-            stack   =>  [ @stack   ],
-            memory  =>  [ @memory  ],
-            labels  => +{ %labels  },
-            strings =>  [ @strings ],
-            stdout  =>  [ @stdout  ],
-            stderr  =>  [ @stderr  ],
-            pc      => $pc,
-            ic      => $ic,
-            ci      => $ci,
-            fp      => $fp,
-            sp      => $sp,
-            running => $running,
-            error   => $error,
+            code     =>  [ @code    ],
+            stack    =>  [ @stack   ],
+            memory   =>  [ @memory  ],
+            labels   => +{ %labels  },
+            strings  =>  [ @strings ],
+            pointers =>  [ @pointers ],
+            stdout   =>  [ @stdout  ],
+            stderr   =>  [ @stderr  ],
+            pc       => $pc,
+            ic       => $ic,
+            ci       => $ci,
+            fp       => $fp,
+            sp       => $sp,
+            running  => $running,
+            error    => $error,
         )
     }
 
     method reset {
-        @code    = ();
-        @stack   = ();
-        @memory  = ();
-        %labels  = ();
-        @strings = ();
+        @code     = ();
+        @stack    = ();
+        @memory   = ();
+        %labels   = ();
+        @strings  = ();
+        @pointers = ();
 
         @stdout = ();
         @stderr = ();
@@ -280,11 +284,15 @@ class VM {
                 $memory[$addr + $_] = undef
                     foreach 0 .. ($size - 1);
 
-                $self->PUSH( +{ addr => $addr => size => $size } );
+                my $next_prt = scalar @pointers;
+                $pointers[$next_prt] = +{ addr => $addr => size => $size, ptr => $next_prt };
+                $self->PUSH( $pointers[-1] );
 
             } elsif ($opcode isa VM::Inst::Op::LOAD_MEM) {
                 my $ptr    = $self->POP;
                 my $offset = $self->POP;
+
+                # TODO: throw an error if this is already free
 
                 if ($offset >= $ptr->{size}) {
                     $error = VM::Errors->MEMORY_ACCESS_OUT_OF_BOUNDS;
@@ -298,6 +306,8 @@ class VM {
                 my $offset = $self->POP;
                 my $value  = $self->POP;
 
+                # TODO: throw an error if this is already free
+
                 if ($offset >= $ptr->{size}) {
                     $error = VM::Errors->MEMORY_ACCESS_OUT_OF_BOUNDS;
                     goto ERROR;
@@ -310,6 +320,10 @@ class VM {
 
                 $memory[ $ptr->{addr} + $_ ] = undef
                     foreach 0 .. ($ptr->{size} - 1);
+
+                # TODO: throw an error if this is already free
+
+                $pointers[ $ptr->{ptr} ] = undef;
 
             } elsif ($opcode isa VM::Inst::Op::COPY_MEM) {
                 my $from_ptr = $self->POP;
