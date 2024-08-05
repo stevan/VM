@@ -41,7 +41,7 @@ class VM::Debugger::StatusView :isa(VM::Debugger::UI::View) {
             ),' │'],
        ['├─',('─' x $width),'─┤'],
        ['│ ',sprintf("instruction counter = %0".($width - 22)."d" => $vm->ic),' │'],
-       ['│ ',sprintf("current instruction = %0".($width - 22)."d" => $vm->ci),' │'],
+       ['│ ',sprintf("instruction pointer = %0".($width - 22)."d" => $vm->ci),' │'],
        ['│ ',('┄' x $width),' │'],
        ['│ ',sprintf("      frame pointer = %0".($width - 22)."d" => $vm->fp),' │'],
        ['│ ',sprintf("      stack pointer = %0".($width - 22)."d" => List::Util::max(0, $vm->sp)),' │'],
