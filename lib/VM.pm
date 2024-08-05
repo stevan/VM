@@ -14,7 +14,7 @@ use VM::Error;
 use VM::Assembler;
 use VM::Debugger;
 
-class VM::Snapshot {
+class VM::State {
     field $code     :param :reader;
     field $stack    :param :reader;
     field $memory   :param :reader;
@@ -84,8 +84,20 @@ class VM {
 
     ## --------------------------------
 
+    method assemble {
+        my ($code, $labels, $strings) = $assembler->assemble($source);
+        $self->reset;
+        @code    = @$code;
+        %labels  = %$labels;
+        @strings = @$strings;
+        $pc     = $labels{ $entry } // die "Could not find entry point($entry) in source";
+        return $self;
+    }
+
+    ## --------------------------------
+
     method snapshot {
-        return VM::Snapshot->new(
+        return VM::State->new(
             code     =>  [ @code    ],
             stack    =>  [ @stack   ],
             memory   =>  [ @memory  ],
@@ -102,6 +114,27 @@ class VM {
             running  => $running,
             error    => $error,
         )
+    }
+
+    method restore ($state) {
+        @code     = $state->code->@*;
+        @stack    = $state->stack->@*;
+        @memory   = $state->memory->@*;
+        %labels   = $state->labels->%*;
+        @strings  = $state->strings->@*;
+        @pointers = $state->pointers->@*;
+
+        @stdout = $state->stdout->@*;
+        @stderr = $state->stderr->@*;
+
+        $pc = $state->pc;
+        $ic = $state->ic;
+        $ci = $state->ci;
+        $fp = $state->fp;
+        $sp = $state->sp;
+
+        $running = $state->running;
+        $error   = $state->error;
     }
 
     method reset {
@@ -125,20 +158,9 @@ class VM {
         $error   = undef;
     }
 
-    method assemble {
-        my ($code, $labels, $strings) = $assembler->assemble($source);
-        $self->reset;
-        @code    = @$code;
-        %labels  = %$labels;
-        @strings = @$strings;
-        $pc     = $labels{ $entry } // die "Could not find entry point($entry) in source";
-        return $self;
-    }
-
     ## --------------------------------
 
     method run {
-
         $SIG{INT} = sub { die "Interuptted!"; };
 
         $error   = undef;
@@ -148,278 +170,15 @@ class VM {
             $ci = $pc;
             my $opcode = $self->next_op;
 
-            unless (defined $opcode) {
-                $error = VM::Errors->UNEXPECTED_END_OF_CODE;
-                goto ERROR;
-            }
-
-            if ($opcode isa VM::Inst::Op::HALT) {
+            if ($error = $self->run_opcode( $opcode )) {
                 $running = false;
-            }
-            ## ------------------------------------
-            ## Constants
-            ## ------------------------------------
-            elsif ($opcode isa VM::Inst::Op::CONST_NIL) {
-                $self->PUSH(undef);
-            } elsif ($opcode isa VM::Inst::Op::CONST_TRUE) {
-                $self->PUSH(true);
-            } elsif ($opcode isa VM::Inst::Op::CONST_FALSE) {
-                $self->PUSH(false);
-            } elsif ($opcode isa VM::Inst::Op::CONST_NUM) {
-                my $v = $self->next_op;
-                $self->PUSH($v);
-            } elsif ($opcode isa VM::Inst::Op::CONST_STR) {
-                my $str_addr = $self->next_op;
-
-                # TODO: throw an error if we dont find it
-
-                $self->PUSH( $strings[ $$str_addr ] );
-            }
-            ## ------------------------------------
-            ## MATH
-            ## ------------------------------------
-            elsif ($opcode isa VM::Inst::Op::ADD_NUM) {
-                my $b = $self->POP;
-                my $a = $self->POP;
-                $self->PUSH( $a + $b );
-            } elsif ($opcode isa VM::Inst::Op::SUB_NUM) {
-                my $b = $self->POP;
-                my $a = $self->POP;
-                $self->PUSH( $a - $b );
-            } elsif ($opcode isa VM::Inst::Op::MUL_NUM) {
-                my $b = $self->POP;
-                my $a = $self->POP;
-                $self->PUSH( $a * $b );
-            } elsif ($opcode isa VM::Inst::Op::DIV_NUM) {
-                my $b = $self->POP;
-                my $a = $self->POP;
-                if ( $b == 0 ) {
-                    $error = VM::Errors->ILLEGAL_DIVISION_BY_ZERO;
-                    goto ERROR;
-                }
-                # TODO : handle div by zero error here
-                $self->PUSH( $a / $b );
-            } elsif ($opcode isa VM::Inst::Op::MOD_NUM) {
-                my $b = $self->POP;
-                my $a = $self->POP;
-                if ( $b == 0 ) {
-                    $error = VM::Errors->ILLEGAL_MOD_BY_ZERO;
-                    goto ERROR;
-                }
-                $self->PUSH( $a % $b );
-            }
-            ## ------------------------------------
-            ## String Operations
-            ## ------------------------------------
-            elsif ($opcode isa VM::Inst::Op::CONCAT_STR) {
-                my $b = $self->POP;
-                my $a = $self->POP;
-                $self->PUSH( $a . $b );
-            }
-            ## ------------------------------------
-            ## Compariosons
-            ## ------------------------------------
-            elsif ($opcode isa VM::Inst::Op::LT_NUM) {
-                my $b = $self->POP;
-                my $a = $self->POP;
-                $self->PUSH( $a < $b ? true : false );
-            } elsif ($opcode isa VM::Inst::Op::GT_NUM) {
-                my $b = $self->POP;
-                my $a = $self->POP;
-                $self->PUSH( $a > $b ? true : false );
-            } elsif ($opcode isa VM::Inst::Op::EQ_NUM) {
-                my $b = $self->POP;
-                my $a = $self->POP;
-                $self->PUSH( $a == $b ? true : false );
-            }
-            # ... for strings
-            elsif ($opcode isa VM::Inst::Op::LT_STR) {
-                my $b = $self->POP;
-                my $a = $self->POP;
-                $self->PUSH( $a lt $b ? true : false );
-            } elsif ($opcode isa VM::Inst::Op::GT_STR) {
-                my $b = $self->POP;
-                my $a = $self->POP;
-                $self->PUSH( $a gt $b ? true : false );
-            } elsif ($opcode isa VM::Inst::Op::EQ_STR) {
-                my $b = $self->POP;
-                my $a = $self->POP;
-                $self->PUSH( $a eq $b ? true : false );
-            }
-            ## ------------------------------------
-            ## Conditionals
-            ## ------------------------------------
-            elsif ($opcode isa VM::Inst::Op::JUMP) {
-                $pc = $self->next_op;
-            } elsif ($opcode isa VM::Inst::Op::JUMP_IF_TRUE) {
-                my $addr = $self->next_op;
-                if ($self->POP == true) {
-                    $pc = $addr;
-                }
-            } elsif ($opcode isa VM::Inst::Op::JUMP_IF_FALSE) {
-                my $addr = $self->next_op;
-                if ($self->POP == false) {
-                    $pc = $addr;
-                }
-            }
-            ## ------------------------------------
-            ## Load/Store stack memory
-            ## ------------------------------------
-            elsif ($opcode isa VM::Inst::Op::LOAD) {
-                my $offset = $self->next_op;
-                $self->PUSH( $stack[$fp + $offset] );
-            } elsif ($opcode isa VM::Inst::Op::STORE) {
-                my $v      = $self->POP;
-                my $offset = $self->next_op;
-                $stack[$fp + $offset] = $v;
-            }
-            ## ------------------------------------
-            ## Load/Store local memory
-            ## ------------------------------------
-            elsif ($opcode isa VM::Inst::Op::ALLOC_MEM) {
-
-                my $size = $self->POP;
-                my $addr = scalar @memory;
-
-                $memory[$addr + $_] = undef
-                    foreach 0 .. ($size - 1);
-
-                my $next_prt = scalar @pointers;
-                $pointers[$next_prt] = +{ addr => $addr => size => $size, ptr => $next_prt };
-                $self->PUSH( $pointers[-1] );
-
-            } elsif ($opcode isa VM::Inst::Op::LOAD_MEM) {
-                my $ptr    = $self->POP;
-                my $offset = $self->POP;
-
-                # TODO: throw an error if this is already free
-
-                if ($offset >= $ptr->{size}) {
-                    $error = VM::Errors->MEMORY_ACCESS_OUT_OF_BOUNDS;
-                    goto ERROR;
-                }
-
-                $self->PUSH( $memory[ $ptr->{addr} + $offset ] );
-
-            } elsif ($opcode isa VM::Inst::Op::STORE_MEM) {
-                my $ptr    = $self->POP;
-                my $offset = $self->POP;
-                my $value  = $self->POP;
-
-                # TODO: throw an error if this is already free
-
-                if ($offset >= $ptr->{size}) {
-                    $error = VM::Errors->MEMORY_ACCESS_OUT_OF_BOUNDS;
-                    goto ERROR;
-                }
-
-                $memory[ $ptr->{addr} + $offset ] = $value;
-
-            } elsif ($opcode isa VM::Inst::Op::FREE_MEM) {
-                my $ptr = $self->POP;
-
-                $memory[ $ptr->{addr} + $_ ] = undef
-                    foreach 0 .. ($ptr->{size} - 1);
-
-                # TODO: throw an error if this is already free
-
-                $pointers[ $ptr->{ptr} ] = undef;
-
-            } elsif ($opcode isa VM::Inst::Op::COPY_MEM) {
-                my $from_ptr = $self->POP;
-                my $to_ptr   = $self->POP;
-
-                if ($to_ptr->{size} != $from_ptr->{size}) {
-                    $error = VM::Errors->INCOMPATIBLE_POINTERS;
-                    goto ERROR;
-                }
-
-                $memory[ $to_ptr->{addr} + $_ ] = $memory[ $from_ptr->{addr} + $_ ]
-                    foreach 0 .. ($to_ptr->{size} - 1);
-            }
-            elsif ($opcode isa VM::Inst::Op::COPY_MEM_FROM) {
-                my $size     = $self->POP;
-                my $offset   = $self->POP;
-                my $from_ptr = $self->POP;
-                my $to_ptr   = $self->POP;
-
-                if ($size > $to_ptr->{size}
-                && ($offset + ($size - 1)) > $from_ptr->{size}) {
-                    $error = VM::Errors->MEMORY_ACCESS_OUT_OF_BOUNDS;
-                    goto ERROR;
-                }
-
-                $memory[ $to_ptr->{addr} + $_ ] = $memory[ ($from_ptr->{addr} + $offset) + $_ ]
-                    foreach 0 .. ($size - 1);
-            }
-            ## ------------------------------------
-            ## Call functions
-            ## ------------------------------------
-            elsif ($opcode isa VM::Inst::Op::LOAD_ARG) {
-                my $offset = $self->next_op;
-                $self->PUSH( $stack[($fp - 3) - $offset] );
-            } elsif ($opcode isa VM::Inst::Op::CALL) {
-                my $addr = $self->next_op; # func address to go to
-                my $argc = $self->next_op; # number of args the function has ...
-                # stash the context ...
-                $self->PUSH($argc);
-                $self->PUSH($fp);
-                $self->PUSH($pc);
-                # set the new context ...
-                $fp = $sp;   # set the new frame pointer
-                $pc = $addr; # and the program counter to the func addr
-
-            } elsif ($opcode isa VM::Inst::Op::RETURN) {
-                my $rval = $self->POP;  # get the return value
-                   $sp   = $fp;         # restore stack pointer
-                   $pc   = $self->POP;  # get the stashed program counter
-                   $fp   = $self->POP;  # get the stashed program frame pointer
-                my $argc = $self->POP;  # get the number of args
-                   $sp  -= $argc;       # decrement stack pointer by num args
-                $self->PUSH($rval);     # push the return value onto the stack
-            }
-            ## ------------------------------------
-            ## Stack Manipulation
-            ## ------------------------------------
-            elsif ($opcode isa VM::Inst::Op::DUP) {
-                $self->PUSH($self->PEEK);
-            } elsif ($opcode isa VM::Inst::Op::POP) {
-                $self->POP;
-            } elsif ($opcode isa VM::Inst::Op::SWAP) {
-                my $v1 = $self->POP;
-                my $v2 = $self->POP;
-                $self->PUSH($v1);
-                $self->PUSH($v2);
-            }
-            ## ------------------------------------
-            ## System Calls
-            ## ------------------------------------
-            elsif ($opcode isa VM::Inst::Op::PRINT) {
-                my $v = $self->POP;
-                push @stdout => $v;
-            } elsif ($opcode isa VM::Inst::Op::WARN) {
-                my $v = $self->POP;
-                push @stderr => $v;
-            }
-            ## ------------------------------------
-            else {
-                $error = VM::Errors->UNKNOWN_OPCODE;
-                goto ERROR;
             }
 
             $ic++;
 
-        ERROR:
-            if ($error) {
-                $running = false;
-            }
-
             if (DEBUG) {
                 print "\e[2J\e[H\n";
                 say $debugger->display( $self->snapshot );
-                if ($error) {
-                    say "ERROR: $error";
-                }
 
                 if ($clock) {
                     Time::HiRes::sleep( $clock );
@@ -428,7 +187,262 @@ class VM {
                 }
             }
         }
+    }
 
+    method run_opcode($opcode) {
+
+        unless (defined $opcode) {
+            return VM::Errors->UNEXPECTED_END_OF_CODE;
+        }
+
+        if ($opcode isa VM::Inst::Op::HALT) {
+            $running = false;
+        }
+        ## ------------------------------------
+        ## Constants
+        ## ------------------------------------
+        elsif ($opcode isa VM::Inst::Op::CONST_NIL) {
+            $self->PUSH(undef);
+        } elsif ($opcode isa VM::Inst::Op::CONST_TRUE) {
+            $self->PUSH(true);
+        } elsif ($opcode isa VM::Inst::Op::CONST_FALSE) {
+            $self->PUSH(false);
+        } elsif ($opcode isa VM::Inst::Op::CONST_NUM) {
+            my $v = $self->next_op;
+            $self->PUSH($v);
+        } elsif ($opcode isa VM::Inst::Op::CONST_STR) {
+            my $str_addr = $self->next_op;
+
+            # TODO: throw an error if we dont find it
+
+            $self->PUSH( $strings[ $$str_addr ] );
+        }
+        ## ------------------------------------
+        ## MATH
+        ## ------------------------------------
+        elsif ($opcode isa VM::Inst::Op::ADD_NUM) {
+            my $b = $self->POP;
+            my $a = $self->POP;
+            $self->PUSH( $a + $b );
+        } elsif ($opcode isa VM::Inst::Op::SUB_NUM) {
+            my $b = $self->POP;
+            my $a = $self->POP;
+            $self->PUSH( $a - $b );
+        } elsif ($opcode isa VM::Inst::Op::MUL_NUM) {
+            my $b = $self->POP;
+            my $a = $self->POP;
+            $self->PUSH( $a * $b );
+        } elsif ($opcode isa VM::Inst::Op::DIV_NUM) {
+            my $b = $self->POP;
+            my $a = $self->POP;
+            if ( $b == 0 ) {
+                return VM::Errors->ILLEGAL_DIVISION_BY_ZERO;
+            }
+            # TODO : handle div by zero error here
+            $self->PUSH( $a / $b );
+        } elsif ($opcode isa VM::Inst::Op::MOD_NUM) {
+            my $b = $self->POP;
+            my $a = $self->POP;
+            if ( $b == 0 ) {
+                return VM::Errors->ILLEGAL_MOD_BY_ZERO;
+            }
+            $self->PUSH( $a % $b );
+        }
+        ## ------------------------------------
+        ## String Operations
+        ## ------------------------------------
+        elsif ($opcode isa VM::Inst::Op::CONCAT_STR) {
+            my $b = $self->POP;
+            my $a = $self->POP;
+            $self->PUSH( $a . $b );
+        }
+        ## ------------------------------------
+        ## Compariosons
+        ## ------------------------------------
+        elsif ($opcode isa VM::Inst::Op::LT_NUM) {
+            my $b = $self->POP;
+            my $a = $self->POP;
+            $self->PUSH( $a < $b ? true : false );
+        } elsif ($opcode isa VM::Inst::Op::GT_NUM) {
+            my $b = $self->POP;
+            my $a = $self->POP;
+            $self->PUSH( $a > $b ? true : false );
+        } elsif ($opcode isa VM::Inst::Op::EQ_NUM) {
+            my $b = $self->POP;
+            my $a = $self->POP;
+            $self->PUSH( $a == $b ? true : false );
+        }
+        # ... for strings
+        elsif ($opcode isa VM::Inst::Op::LT_STR) {
+            my $b = $self->POP;
+            my $a = $self->POP;
+            $self->PUSH( $a lt $b ? true : false );
+        } elsif ($opcode isa VM::Inst::Op::GT_STR) {
+            my $b = $self->POP;
+            my $a = $self->POP;
+            $self->PUSH( $a gt $b ? true : false );
+        } elsif ($opcode isa VM::Inst::Op::EQ_STR) {
+            my $b = $self->POP;
+            my $a = $self->POP;
+            $self->PUSH( $a eq $b ? true : false );
+        }
+        ## ------------------------------------
+        ## Conditionals
+        ## ------------------------------------
+        elsif ($opcode isa VM::Inst::Op::JUMP) {
+            $pc = $self->next_op;
+        } elsif ($opcode isa VM::Inst::Op::JUMP_IF_TRUE) {
+            my $addr = $self->next_op;
+            if ($self->POP == true) {
+                $pc = $addr;
+            }
+        } elsif ($opcode isa VM::Inst::Op::JUMP_IF_FALSE) {
+            my $addr = $self->next_op;
+            if ($self->POP == false) {
+                $pc = $addr;
+            }
+        }
+        ## ------------------------------------
+        ## Load/Store stack memory
+        ## ------------------------------------
+        elsif ($opcode isa VM::Inst::Op::LOAD) {
+            my $offset = $self->next_op;
+            $self->PUSH( $stack[$fp + $offset] );
+        } elsif ($opcode isa VM::Inst::Op::STORE) {
+            my $v      = $self->POP;
+            my $offset = $self->next_op;
+            $stack[$fp + $offset] = $v;
+        }
+        ## ------------------------------------
+        ## Load/Store local memory
+        ## ------------------------------------
+        elsif ($opcode isa VM::Inst::Op::ALLOC_MEM) {
+
+            my $size = $self->POP;
+            my $addr = scalar @memory;
+
+            $memory[$addr + $_] = undef
+                foreach 0 .. ($size - 1);
+
+            my $next_prt = scalar @pointers;
+            $pointers[$next_prt] = +{ addr => $addr => size => $size, ptr => $next_prt };
+            $self->PUSH( $pointers[-1] );
+
+        } elsif ($opcode isa VM::Inst::Op::LOAD_MEM) {
+            my $ptr    = $self->POP;
+            my $offset = $self->POP;
+
+            # TODO: throw an error if this is already free
+
+            if ($offset >= $ptr->{size}) {
+                return VM::Errors->MEMORY_ACCESS_OUT_OF_BOUNDS;
+            }
+
+            $self->PUSH( $memory[ $ptr->{addr} + $offset ] );
+
+        } elsif ($opcode isa VM::Inst::Op::STORE_MEM) {
+            my $ptr    = $self->POP;
+            my $offset = $self->POP;
+            my $value  = $self->POP;
+
+            # TODO: throw an error if this is already free
+
+            if ($offset >= $ptr->{size}) {
+                return VM::Errors->MEMORY_ACCESS_OUT_OF_BOUNDS;
+            }
+
+            $memory[ $ptr->{addr} + $offset ] = $value;
+
+        } elsif ($opcode isa VM::Inst::Op::FREE_MEM) {
+            my $ptr = $self->POP;
+
+            $memory[ $ptr->{addr} + $_ ] = undef
+                foreach 0 .. ($ptr->{size} - 1);
+
+            # TODO: throw an error if this is already free
+
+            $pointers[ $ptr->{ptr} ] = undef;
+
+        } elsif ($opcode isa VM::Inst::Op::COPY_MEM) {
+            my $from_ptr = $self->POP;
+            my $to_ptr   = $self->POP;
+
+            if ($to_ptr->{size} != $from_ptr->{size}) {
+                return VM::Errors->INCOMPATIBLE_POINTERS;
+            }
+
+            $memory[ $to_ptr->{addr} + $_ ] = $memory[ $from_ptr->{addr} + $_ ]
+                foreach 0 .. ($to_ptr->{size} - 1);
+        }
+        elsif ($opcode isa VM::Inst::Op::COPY_MEM_FROM) {
+            my $size     = $self->POP;
+            my $offset   = $self->POP;
+            my $from_ptr = $self->POP;
+            my $to_ptr   = $self->POP;
+
+            if ($size > $to_ptr->{size}
+            && ($offset + ($size - 1)) > $from_ptr->{size}) {
+                return VM::Errors->MEMORY_ACCESS_OUT_OF_BOUNDS;
+            }
+
+            $memory[ $to_ptr->{addr} + $_ ] = $memory[ ($from_ptr->{addr} + $offset) + $_ ]
+                foreach 0 .. ($size - 1);
+        }
+        ## ------------------------------------
+        ## Call functions
+        ## ------------------------------------
+        elsif ($opcode isa VM::Inst::Op::LOAD_ARG) {
+            my $offset = $self->next_op;
+            $self->PUSH( $stack[($fp - 3) - $offset] );
+        } elsif ($opcode isa VM::Inst::Op::CALL) {
+            my $addr = $self->next_op; # func address to go to
+            my $argc = $self->next_op; # number of args the function has ...
+            # stash the context ...
+            $self->PUSH($argc);
+            $self->PUSH($fp);
+            $self->PUSH($pc);
+            # set the new context ...
+            $fp = $sp;   # set the new frame pointer
+            $pc = $addr; # and the program counter to the func addr
+
+        } elsif ($opcode isa VM::Inst::Op::RETURN) {
+            my $rval = $self->POP;  # get the return value
+               $sp   = $fp;         # restore stack pointer
+               $pc   = $self->POP;  # get the stashed program counter
+               $fp   = $self->POP;  # get the stashed program frame pointer
+            my $argc = $self->POP;  # get the number of args
+               $sp  -= $argc;       # decrement stack pointer by num args
+            $self->PUSH($rval);     # push the return value onto the stack
+        }
+        ## ------------------------------------
+        ## Stack Manipulation
+        ## ------------------------------------
+        elsif ($opcode isa VM::Inst::Op::DUP) {
+            $self->PUSH($self->PEEK);
+        } elsif ($opcode isa VM::Inst::Op::POP) {
+            $self->POP;
+        } elsif ($opcode isa VM::Inst::Op::SWAP) {
+            my $v1 = $self->POP;
+            my $v2 = $self->POP;
+            $self->PUSH($v1);
+            $self->PUSH($v2);
+        }
+        ## ------------------------------------
+        ## System Calls
+        ## ------------------------------------
+        elsif ($opcode isa VM::Inst::Op::PRINT) {
+            my $v = $self->POP;
+            push @stdout => $v;
+        } elsif ($opcode isa VM::Inst::Op::WARN) {
+            my $v = $self->POP;
+            push @stderr => $v;
+        }
+        ## ------------------------------------
+        else {
+            return VM::Errors->UNKNOWN_OPCODE;
+        }
+
+        return;
     }
 
 }
