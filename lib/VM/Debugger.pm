@@ -30,7 +30,7 @@ class VM::Debugger {
     field $stderr_view :reader;
 
     ADJUST {
-        $code_view   = VM::Debugger::CodeView   ->new( width => 50, title => 'Code',  height => 20 );
+        $code_view   = VM::Debugger::CodeView   ->new( width => 50, title => 'Code',  height => 22 );
         $stack_view  = VM::Debugger::StackView  ->new( width => 32, title => 'Stack', stack_height => 20 );
         $memory_view = VM::Debugger::MemoryView ->new( width => 32, title => 'Memory' );
         $stdout_view = VM::Debugger::IOView     ->new( width => 32, title => 'STDOUT', from => 'stdout' );
@@ -42,9 +42,9 @@ class VM::Debugger {
                 $code_view,
                 VM::Debugger::UI::StackedViews->new(
                     views => [
-                        $memory_view,
                         $stdout_view,
                         $stderr_view,
+                        $memory_view,
                     ]
                 )
             ]

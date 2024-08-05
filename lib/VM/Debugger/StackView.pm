@@ -57,8 +57,8 @@ class VM::Debugger::StackView :isa(VM::Debugger::UI::View) {
         ['├─',('─' x $width),              '─┤'],
     }
 
-    method draw_footer ($, $start, $end, $size) {
-        my $footer = sprintf "${count_fmt} ... ${count_fmt} of ${count_fmt}" => $start, $end, $size;
+    method draw_footer ($, $start, $end) {
+        my $footer = sprintf "${count_fmt}..${count_fmt}" => $start, $end;
         ['├─',('─' x $width),               '─┤'],
         ['│ ',(sprintf $title_fmt, $footer),' │'],
         ['╰─',('─' x $width),               '─╯'],
@@ -117,7 +117,7 @@ class VM::Debugger::StackView :isa(VM::Debugger::UI::View) {
         (map {
             $self->draw_line( $vm, $_, ($_ < @stack ? $stack[$_] : undef) )
         } reverse @stack_idxs),
-        $self->draw_footer($vm, $stack_idxs[0], $stack_idxs[-1], $#stack),
+        $self->draw_footer($vm, $stack_idxs[0], $vm->sp),
     }
 
 }

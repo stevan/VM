@@ -37,7 +37,7 @@ class VM::Debugger::CodeView :isa(VM::Debugger::UI::View) {
 
     method recalculate {
         $self->rect_width  = $width  + 4; # add four to the width for the box and indent
-        $self->rect_height = $height + 5; # start at five to the stack-height for the box top and bottom
+        $self->rect_height = $height + 4; # start at five to the stack-height for the box top and bottom
     }
 
     method draw_header ($) {
@@ -46,10 +46,10 @@ class VM::Debugger::CodeView :isa(VM::Debugger::UI::View) {
         ['├─',('─' x $width),              '─┤'],
     }
 
-    method draw_footer ($, $start, $end, $size) {
-        my $footer = sprintf "${count_fmt} ... ${count_fmt} of ${count_fmt}" => $start, $end, $size;
-        ['├─',('─' x $width),               '─┤'],
-        ['│ ',(sprintf $title_fmt, $footer),' │'],
+    method draw_footer ($) {
+        #my $footer = sprintf "${count_fmt} ... ${count_fmt} of ${count_fmt}" => $start, $end, $size;
+        #['├─',('─' x $width),               '─┤'],
+        #['│ ',(sprintf $title_fmt, $footer),' │'],
         ['╰─',('─' x $width),               '─╯'],
     }
 
@@ -145,11 +145,15 @@ class VM::Debugger::CodeView :isa(VM::Debugger::UI::View) {
             my $fixed = $height - 1;
             my $end   = $fixed + $start;
 
-            if ($ci_index > $start && $ci_index < $end) {
-                warn "CI(${ci_index}) inside the view (s: $start, f: $fixed, e: $end)";
-            } else {
-                warn "CI(${ci_index}) outside the view (s: $start, f: $fixed, e: $end)";
+            if ($ci_index < $start && $ci_index < $end) {
+                #warn "CI(${ci_index}) outside the view (s: $start, f: $fixed, e: $end)";
+                $start = $ci_index;
+                $end   = $fixed + $start;
+                #warn "FIXED: CI(${ci_index}) outside the view (s: $start, f: $fixed, e: $end)";
             }
+            #else {
+            #    warn "CI(${ci_index}) inside the view (s: $start, f: $fixed, e: $end)";
+            #}
 
             @lines_to_draw = @lines_to_draw[ $start .. $end ];
         }
@@ -157,8 +161,7 @@ class VM::Debugger::CodeView :isa(VM::Debugger::UI::View) {
         map { join '' => @$_ }
         $self->draw_header($vm),
         @lines_to_draw,
-        $self->draw_footer($vm, $lines[0]->[0], $lines[-1]->[0], $line_num - 1),
-
+        $self->draw_footer($vm),
     }
 
 }
