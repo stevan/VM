@@ -55,7 +55,7 @@ my $vm = VM->new(
             # .. make one the arg
             VM::Inst->DUP,
             # the size of the array
-            VM::Inst->CONST_NUM, 7,
+            VM::Inst->CONST_NUM, 5,
             VM::Inst->CALL, VM::Inst->marker('.fill_array'), 2,
 
             VM::Inst->LOAD, 0,
