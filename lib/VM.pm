@@ -19,6 +19,7 @@ class VM::Snapshot {
     field $stack   :param :reader;
     field $memory  :param :reader;
     field $labels  :param :reader;
+    field $strings :param :reader;
 
     field $stdout  :param :reader;
     field $stderr  :param :reader;
@@ -49,6 +50,7 @@ class VM {
     field @stack;
     field @memory;
     field %labels;
+    field @strings;
 
     field @stdout;
     field @stderr;
@@ -82,12 +84,13 @@ class VM {
 
     method snapshot {
         return VM::Snapshot->new(
-            code    =>  [ @code   ],
-            stack   =>  [ @stack  ],
-            memory  =>  [ @memory ],
-            labels  => +{ %labels },
-            stdout  =>  [ @stdout ],
-            stderr  =>  [ @stderr ],
+            code    =>  [ @code    ],
+            stack   =>  [ @stack   ],
+            memory  =>  [ @memory  ],
+            labels  => +{ %labels  },
+            strings =>  [ @strings ]
+            stdout  =>  [ @stdout  ],
+            stderr  =>  [ @stderr  ],
             pc      => $pc,
             ic      => $ic,
             ci      => $ci,
@@ -99,10 +102,11 @@ class VM {
     }
 
     method reset {
-        @code   = ();
-        @stack  = ();
-        @memory = ();
-        %labels = ();
+        @code    = ();
+        @stack   = ();
+        @memory  = ();
+        %labels  = ();
+        @strings = ();
 
         @stdout = ();
         @stderr = ();
@@ -118,7 +122,7 @@ class VM {
     }
 
     method assemble {
-        my ($labels, $code) = $assembler->assemble($source);
+        my ($code, $labels, $string_table) = $assembler->assemble($source);
         $self->reset;
         %labels = %$labels;
         @code   = @$code;
@@ -156,9 +160,15 @@ class VM {
                 $self->PUSH(true);
             } elsif ($opcode isa VM::Inst::Op::CONST_FALSE) {
                 $self->PUSH(false);
-            } elsif ($opcode isa VM::Inst::Op::CONST_NUM || $opcode isa VM::Inst::Op::CONST_STR) {
+            } elsif ($opcode isa VM::Inst::Op::CONST_NUM) {
                 my $v = $self->next_op;
                 $self->PUSH($v);
+            } elsif ($opcode isa VM::Inst::Op::CONST_STR) {
+                my $str_addr = $self->next_op;
+
+                # TODO: throw an error if we dont find it
+
+                $self->PUSH( $strings[$str_addr] );
             }
             ## ------------------------------------
             ## MATH
