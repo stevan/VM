@@ -16,6 +16,7 @@ use VM::Debugger::CodeView;
 use VM::Debugger::StackView;
 use VM::Debugger::MemoryView;
 use VM::Debugger::IOView;
+use VM::Debugger::StatusView;
 
 use VM::Debugger::UI::ZippedViews;
 use VM::Debugger::UI::StackedViews;
@@ -28,13 +29,15 @@ class VM::Debugger {
     field $memory_view :reader;
     field $stdout_view :reader;
     field $stderr_view :reader;
+    field $error_view  :reader;
 
     ADJUST {
-        $code_view   = VM::Debugger::CodeView   ->new( width => 50, title => 'Code',  height => 22 );
+        $code_view   = VM::Debugger::CodeView   ->new( width => 50, title => 'Code',  height => 45 );
         $stack_view  = VM::Debugger::StackView  ->new( width => 32, title => 'Stack', stack_height => 20 );
         $memory_view = VM::Debugger::MemoryView ->new( width => 32, title => 'Memory' );
         $stdout_view = VM::Debugger::IOView     ->new( width => 32, title => 'STDOUT', from => 'stdout' );
         $stderr_view = VM::Debugger::IOView     ->new( width => 32, title => 'STDERR', from => 'stderr' );
+        $error_view  = VM::Debugger::StatusView ->new( width => 32 );
 
         $root_view = VM::Debugger::UI::ZippedViews->new(
             views => [
@@ -42,6 +45,7 @@ class VM::Debugger {
                 $code_view,
                 VM::Debugger::UI::StackedViews->new(
                     views => [
+                        $error_view,
                         $stdout_view,
                         $stderr_view,
                         $memory_view,

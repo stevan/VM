@@ -11,9 +11,13 @@ package VM::Errors {
     BEGIN {
         @ERRORS = qw(
             UNKNOWN_OPCODE
-            ILLEGAL_DIVISION_BY_ZERO
             UNEXPECTED_END_OF_CODE
+
+            ILLEGAL_DIVISION_BY_ZERO
             ILLEGAL_MOD_BY_ZERO
+
+            MEMORY_ACCESS_OUT_OF_BOUNDS
+            INCOMPATIBLE_POINTERS
         );
 
         foreach my $i (0 .. $#ERRORS) {

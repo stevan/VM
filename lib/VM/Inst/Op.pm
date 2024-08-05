@@ -58,6 +58,8 @@ class VM::Inst::Op::ALLOC_MEM     :isa(VM::Inst::Op::StackOp) {}
 class VM::Inst::Op::LOAD_MEM      :isa(VM::Inst::Op::StackOp) {}
 class VM::Inst::Op::STORE_MEM     :isa(VM::Inst::Op::StackOp) {}
 class VM::Inst::Op::FREE_MEM      :isa(VM::Inst::Op::StackOp) {}
+class VM::Inst::Op::COPY_MEM      :isa(VM::Inst::Op::StackOp) {}
+class VM::Inst::Op::COPY_MEM_FROM :isa(VM::Inst::Op::StackOp) {}
 class VM::Inst::Op::RETURN        :isa(VM::Inst::Op::StackOp) {}
 class VM::Inst::Op::DUP           :isa(VM::Inst::Op::StackOp) {}
 class VM::Inst::Op::POP           :isa(VM::Inst::Op::StackOp) {}

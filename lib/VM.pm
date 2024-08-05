@@ -261,9 +261,6 @@ class VM {
             ## ------------------------------------
             ## Load/Store local memory
             ## ------------------------------------
-            # TODO: add memory error handling here
-            # - OOM
-            # - BOUNDS ERROR
             elsif ($opcode isa VM::Inst::Op::ALLOC_MEM) {
 
                 my $size = $self->POP;
@@ -278,7 +275,10 @@ class VM {
                 my $ptr    = $self->POP;
                 my $offset = $self->POP;
 
-                # TODO: add check that offset is not greater than length
+                if ($offset >= $ptr->{size}) {
+                    $error = VM::Errors->MEMORY_ACCESS_OUT_OF_BOUNDS;
+                    goto ERROR;
+                }
 
                 $self->PUSH( $memory[ $ptr->{addr} + $offset ] );
 
@@ -287,9 +287,10 @@ class VM {
                 my $offset = $self->POP;
                 my $value  = $self->POP;
 
-                #warn "ptr: $ptr offset: $offset value: $value";
-
-                # TODO: add check that offset is not greater than length
+                if ($offset >= $ptr->{size}) {
+                    $error = VM::Errors->MEMORY_ACCESS_OUT_OF_BOUNDS;
+                    goto ERROR;
+                }
 
                 $memory[ $ptr->{addr} + $offset ] = $value;
 
@@ -298,6 +299,33 @@ class VM {
 
                 $memory[ $ptr->{addr} + $_ ] = undef
                     foreach 0 .. ($ptr->{size} - 1);
+
+            } elsif ($opcode isa VM::Inst::Op::COPY_MEM) {
+                my $from_ptr = $self->POP;
+                my $to_ptr   = $self->POP;
+
+                if ($to_ptr->{size} != $from_ptr->{size}) {
+                    $error = VM::Errors->INCOMPATIBLE_POINTERS;
+                    goto ERROR;
+                }
+
+                $memory[ $to_ptr->{addr} + $_ ] = $memory[ $from_ptr->{addr} + $_ ]
+                    foreach 0 .. ($to_ptr->{size} - 1);
+            }
+            elsif ($opcode isa VM::Inst::Op::COPY_MEM_FROM) {
+                my $size     = $self->POP;
+                my $offset   = $self->POP;
+                my $from_ptr = $self->POP;
+                my $to_ptr   = $self->POP;
+
+                if ($size > $to_ptr->{size}
+                && ($offset + ($size - 1)) > $from_ptr->{size}) {
+                    $error = VM::Errors->MEMORY_ACCESS_OUT_OF_BOUNDS;
+                    goto ERROR;
+                }
+
+                $memory[ $to_ptr->{addr} + $_ ] = $memory[ ($from_ptr->{addr} + $offset) + $_ ]
+                    foreach 0 .. ($size - 1);
             }
             ## ------------------------------------
             ## Call functions
@@ -364,6 +392,9 @@ class VM {
             if (DEBUG) {
                 print "\e[2J\e[H\n";
                 say $debugger->display( $self->snapshot );
+                if ($error) {
+                    say "ERROR: $error";
+                }
 
                 if ($clock) {
                     Time::HiRes::sleep( $clock );
