@@ -47,17 +47,5 @@ class VM::Debugger::UI::View {
                         ? $const
                         : '"'.$const.'"')))
     }
-
-    method format_opcode ($code, $labels, $width, $include_colors) {
-        my $opcode_fmt = "%-${width}s";
-        my $value_fmt  = "%${width}s";
-
-        VM::Inst::is_opcode($code)
-            ? (sprintf(($include_colors ? "\e[0;32m" : "")."${opcode_fmt}\e[0m" => $code))
-            : (exists $labels->{"".$code}
-                ? (sprintf(($include_colors ? "\e[0;36m" : "")."${value_fmt}\e[0m" => $code))
-                : (sprintf(($include_colors ? "\e[0;34m" : "")."${value_fmt}\e[0m" =>
-                    $self->format_const($code))))
-    }
 }
 

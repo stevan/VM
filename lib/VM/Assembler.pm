@@ -33,6 +33,9 @@ class VM::Assembler {
                             $labels{$line->name},
                             $line->name
                         );
+                    } elsif ($line isa VM::Inst::Op) {
+                        $i++;
+                        push @code => $line;
                     }
                 } else {
                     $i++;

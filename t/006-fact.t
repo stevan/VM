@@ -35,7 +35,7 @@ my $vm = VM->new(
 
 
         VM::Inst->label('.main'),
-            VM::Inst->CONST_NUM, 6,
+            VM::Inst->CONST_NUM, 9,
             VM::Inst->CALL, VM::Inst->marker('.factorial'), 1,
             VM::Inst->PRINT,
             VM::Inst->HALT

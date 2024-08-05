@@ -5,10 +5,14 @@ use experimental qw[ class ];
 
 use Scalar::Util;
 
+use VM::Inst::Op;
+
+class VM::Inst::Label  { field $name :param :reader }
+class VM::Inst::Marker { field $name :param :reader }
+
 package VM::Inst {
 
     our @OPCODES;
-    our %OPCODES;
     BEGIN {
         @OPCODES = qw(
             NOOP
@@ -20,9 +24,6 @@ package VM::Inst {
 
             CONST_NUM
             CONST_STR
-
-            CREATE_ARRAY
-            ARRAY_INDEX
 
             ADD_NUM
             SUB_NUM
@@ -65,17 +66,11 @@ package VM::Inst {
 
         foreach my $i (0 .. $#OPCODES) {
             no strict 'refs';
-            my $opcode = $OPCODES[$i];
-            $OPCODES[$i] = Scalar::Util::dualvar( $i, $opcode );
-            $OPCODES{$opcode} = $OPCODES[$i];
+            my $opcode   = $OPCODES[$i];
+            $OPCODES[$i] = ('VM::Inst::Op::'.$opcode)->new;
             *{__PACKAGE__."::${opcode}"} = sub { $OPCODES[$i] };
         }
     }
-
-    sub is_opcode ($opcode) { exists $OPCODES{$opcode} }
-
-    class VM::Inst::Label  { field $name :param :reader }
-    class VM::Inst::Marker { field $name :param :reader }
 
     sub label  ($, $name) { VM::Inst::Label ->new( name => $name ) }
     sub marker ($, $name) { VM::Inst::Marker->new( name => $name ) }

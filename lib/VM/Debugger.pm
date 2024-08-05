@@ -27,7 +27,7 @@ class VM::Debugger {
     field $memory_view :reader;
 
     ADJUST {
-        $code_view   = VM::Debugger::CodeView   ->new( width => 32, title => 'Code',  code_height  => 30 );
+        $code_view   = VM::Debugger::CodeView   ->new( width => 50, title => 'Code' );
         $stack_view  = VM::Debugger::StackView  ->new( width => 32, title => 'Stack', stack_height => 30 );
         $memory_view = VM::Debugger::MemoryView ->new( width => 32, title => 'Memory' );
 
