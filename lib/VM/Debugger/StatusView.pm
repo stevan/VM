@@ -16,8 +16,8 @@ class VM::Debugger::StatusView :isa(VM::Debugger::UI::View) {
     field $width :param :reader;
 
     method recalculate {
-        $self->rect_width  = $width + 4;   # add four to the width for the box and indent
-        $self->rect_height = 3;            # start with two for the height for the box
+        $self->rect_width  = $width + 4;
+        $self->rect_height = 15 + scalar $self->snapshot->strings->@*;
     }
 
     method draw {
@@ -29,8 +29,9 @@ class VM::Debugger::StatusView :isa(VM::Debugger::UI::View) {
             $anim_state++;
         }
         #warn $anim_state;
-        my $vm    = $self->snapshot;
-        my $error = $vm->error;
+        my $vm      = $self->snapshot;
+        my $error   = $vm->error;
+        my @strings = $vm->strings->@*;
 
         map { join '' => @$_ }
        ['╭─',('─' x $width),'─╮'],
@@ -39,11 +40,15 @@ class VM::Debugger::StatusView :isa(VM::Debugger::UI::View) {
                 ($error // ('.' x $anim_state))
             ),' │'],
        ['├─',('─' x $width),'─┤'],
-       ['│ ',sprintf("     program counter = %-".($width - 23).".5d" => $vm->pc),' │'],
-       ['│ ',sprintf(" instruction counter = %-".($width - 23).".5d" => $vm->ic),' │'],
-       ['│ ',sprintf(" current instruction = %-".($width - 23).".5d" => $vm->ci),' │'],
-       ['│ ',sprintf("       frame pointer = %-".($width - 23).".5d" => $vm->fp),' │'],
-       ['│ ',sprintf("       stack pointer = %-".($width - 23).".5d" => $vm->sp),' │'],
+       ['│ ',sprintf("instruction counter = %0".($width - 22)."d" => $vm->ic),' │'],
+       ['│ ',sprintf("current instruction = %0".($width - 22)."d" => $vm->ci),' │'],
+       ['│ ',('┄' x $width),' │'],
+       ['│ ',sprintf("      frame pointer = %0".($width - 22)."d" => $vm->fp),' │'],
+       ['│ ',sprintf("      stack pointer = %0".($width - 22)."d" => List::Util::max(0, $vm->sp)),' │'],
+       ['├─',('─' x $width),'─┤'],
+       ['│ ',sprintf("%-${width}s" => "String Table"),' │'],
+       ['├─',('─' x $width),'─┤'],
+       (map { ['│ ',sprintf("%05d ┊ %-".($width - 8)."s" => $_, '"'.$strings[$_].'"'),' │'] } 0 .. $#strings),
        ['╰─',('─' x $width),'─╯'],
     }
 }

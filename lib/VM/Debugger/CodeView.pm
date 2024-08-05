@@ -80,7 +80,9 @@ class VM::Debugger::CodeView :isa(VM::Debugger::UI::View) {
             sprintf(($include_colors ? "\e[0;32m" : "").$op_fmt.
                     ($include_colors ? "\e[0;34m" : "").$val_fmt
                         => $name, join ', ' => map {
-                                        if (exists $vm->labels->{$_}) {
+                                        if (ref $_) {
+                                            $self->format_const($vm->strings->[ $$_ ])
+                                        } elsif (exists $vm->labels->{$_}) {
                                             $_
                                         } else {
                                             $self->format_const($_)

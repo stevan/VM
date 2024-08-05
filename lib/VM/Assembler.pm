@@ -10,7 +10,7 @@ class VM::Assembler {
     method assemble ($source) {
         my %labels;
         my @code;
-        my @string_table;
+        my @strings;
 
         {
             my $i = 0;
@@ -52,9 +52,9 @@ class VM::Assembler {
                     # collect the string table ...
                     if ($prev_opcode && $prev_opcode isa VM::Inst::Op::CONST_STR) {
                         # add to the string table
-                        push @string_table => $line;
-                        # and replace it with the index
-                        $line = $#string_table;
+                        push @strings => $line;
+                        # and replace it with a ref to the index
+                        $line = \(my $x = $#strings);
                     }
 
                     $i++;
@@ -63,6 +63,6 @@ class VM::Assembler {
             }
         }
 
-        return \@code, \%labels, \@string_table;
+        return \@code, \%labels, \@strings;
     }
 }

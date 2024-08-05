@@ -88,7 +88,7 @@ class VM {
             stack   =>  [ @stack   ],
             memory  =>  [ @memory  ],
             labels  => +{ %labels  },
-            strings =>  [ @strings ]
+            strings =>  [ @strings ],
             stdout  =>  [ @stdout  ],
             stderr  =>  [ @stderr  ],
             pc      => $pc,
@@ -122,10 +122,11 @@ class VM {
     }
 
     method assemble {
-        my ($code, $labels, $string_table) = $assembler->assemble($source);
+        my ($code, $labels, $strings) = $assembler->assemble($source);
         $self->reset;
-        %labels = %$labels;
-        @code   = @$code;
+        @code    = @$code;
+        %labels  = %$labels;
+        @strings = @$strings;
         $pc     = $labels{ $entry } // die "Could not find entry point($entry) in source";
         return $self;
     }
@@ -168,7 +169,7 @@ class VM {
 
                 # TODO: throw an error if we dont find it
 
-                $self->PUSH( $strings[$str_addr] );
+                $self->PUSH( $strings[ $$str_addr ] );
             }
             ## ------------------------------------
             ## MATH
