@@ -36,16 +36,8 @@ class VM::Debugger::CodeView :isa(VM::Debugger::UI::View) {
     }
 
     method recalculate {
-        $self->rect_width  = $width + 4; # add four to the width for the box and indent
-        $self->rect_height = 5; # start at five to the stack-height for the box top and bottom
-
-        my $vm = $self->snapshot;
-        $self->rect_height += (
-            (scalar grep { blessed $_ && $_->isa('VM::Inst::Op') } $vm->code->@*)
-            + (scalar keys $vm->labels->%*)
-        );
-
-        $self->rect_height = List::Util::max($height, $self->rect_height);
+        $self->rect_width  = $width  + 4; # add four to the width for the box and indent
+        $self->rect_height = $height + 5; # start at five to the stack-height for the box top and bottom
     }
 
     method draw_header ($) {
@@ -99,18 +91,16 @@ class VM::Debugger::CodeView :isa(VM::Debugger::UI::View) {
         }
     }
 
-    method draw_fill_lines ($num_lines) {
-        my @out;
-        foreach ($num_lines .. $height) {
-            push @out => ['│ ',(sprintf "\e[0;35m${title_fmt}\e[0m" => '00000 ┊'),'   │'];
-        }
-        return @out;
+    method draw_fill_line {
+        ['│ ',(sprintf "\e[0;35m${title_fmt}\e[0m" => '00000 ┊'),'   │'];
     }
 
     method draw {
         my $vm     = $self->snapshot;
         my @code   = $vm->code->@*;
         my %labels = $vm->labels->%*;
+
+        my $ci_index = 0;
 
         my $line_num = 0;
         my @lines;
@@ -122,6 +112,9 @@ class VM::Debugger::CodeView :isa(VM::Debugger::UI::View) {
             if ($code isa VM::Inst::Op) {
                 #warn "GOT OP: $code";
                 my @line = ($line_num, $code);
+
+                $ci_index = scalar @lines if $vm->ci == $line_num;
+
                 if (my $arity = $code->arity) {
                     #warn "GOT ARITY: $arity";
                     while ($arity--) {
@@ -134,10 +127,36 @@ class VM::Debugger::CodeView :isa(VM::Debugger::UI::View) {
             }
         }
 
+        # do this to add the labels in ...
+        my @drawn_lines = map { $self->draw_line( $vm, @$_ ) } @lines;
+
+        # determine how much to draw
+        my @lines_to_draw = @drawn_lines;
+
+        my $num_lines = scalar @drawn_lines;
+
+        if ($num_lines < $height) {
+            foreach my $i (0 .. ($height - 1)) {
+                push @lines_to_draw => $self->draw_fill_line
+                    unless $drawn_lines[$i];
+            }
+        } else {
+            my $start = $num_lines - $height;
+            my $fixed = $height - 1;
+            my $end   = $fixed + $start;
+
+            if ($ci_index > $start && $ci_index < $end) {
+                warn "CI(${ci_index}) inside the view (s: $start, f: $fixed, e: $end)";
+            } else {
+                warn "CI(${ci_index}) outside the view (s: $start, f: $fixed, e: $end)";
+            }
+
+            @lines_to_draw = @lines_to_draw[ $start .. $end ];
+        }
+
         map { join '' => @$_ }
         $self->draw_header($vm),
-        (map { $self->draw_line( $vm, @$_ ) } @lines),
-        #$self->draw_fill_lines( scalar @lines ),
+        @lines_to_draw,
         $self->draw_footer($vm, $lines[0]->[0], $lines[-1]->[0], $line_num - 1),
 
     }
