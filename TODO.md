@@ -1,17 +1,19 @@
 # VM
 
-
 ## TODO:
 
+- run should return a VM::State object
+    - we can inspect these in tests
+
+- run should accept a number of cycles to perform
+    - and because it returns the VM::State
+        - this could become a Thread ... hmm
+
+- write more tests
+    - for errors in particular
+
 - Instructions for:
-    - ARRAYS
-        - we have CREATE and INDEX, but need more now
     - VECTORS
-        - this is homogeneous arrays (all the same type)
         - maybe for SIMD instructions
 
-- Memory
-    - need to reclaim freed cells
-    - do Pointers need to be more sophisticated?
-        - should I be tracking them?
 

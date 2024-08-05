@@ -188,6 +188,8 @@ class VM {
                 }
             }
         }
+
+        return $self->snapshot;
     }
 
     method run_opcode($opcode) {
