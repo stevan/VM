@@ -13,8 +13,9 @@ use VM::Inst;
 use VM::Error;
 
 class VM::Debugger::CodeView :isa(VM::Debugger::UI::View) {
-    field $width       :param :reader;
-    field $title       :param :reader;
+    field $width  :param :reader;
+    field $height :param :reader;
+    field $title  :param :reader;
 
     field $title_fmt;
     field $count_fmt;
@@ -43,6 +44,8 @@ class VM::Debugger::CodeView :isa(VM::Debugger::UI::View) {
             (scalar grep { blessed $_ && $_->isa('VM::Inst::Op') } $vm->code->@*)
             + (scalar keys $vm->labels->%*)
         );
+
+        $self->rect_height = List::Util::max($height, $self->rect_height);
     }
 
     method draw_header ($) {
@@ -96,6 +99,14 @@ class VM::Debugger::CodeView :isa(VM::Debugger::UI::View) {
         }
     }
 
+    method draw_fill_lines ($num_lines) {
+        my @out;
+        foreach ($num_lines .. $height) {
+            push @out => ['│ ',(sprintf "\e[0;35m${title_fmt}\e[0m" => '00000 ┊'),'   │'];
+        }
+        return @out;
+    }
+
     method draw {
         my $vm     = $self->snapshot;
         my @code   = $vm->code->@*;
@@ -126,6 +137,7 @@ class VM::Debugger::CodeView :isa(VM::Debugger::UI::View) {
         map { join '' => @$_ }
         $self->draw_header($vm),
         (map { $self->draw_line( $vm, @$_ ) } @lines),
+        #$self->draw_fill_lines( scalar @lines ),
         $self->draw_footer($vm, $lines[0]->[0], $lines[-1]->[0], $line_num - 1),
 
     }

@@ -5,10 +5,11 @@ use experimental qw[ class builtin ];
 
 use VM;
 use VM::Debugger;
+use VM::Debugger::IOView;
 
-say join "\n" => VM::Debugger::CodeView->new(
-    width => 40,
-    title => 'Code',
+say join "\n" => VM::Debugger::IOView->new(
+    width  => 40,
+    title  => 'STDOUT',
 )->update(
     VM::Snapshot->new(
         code    => [
@@ -38,7 +39,7 @@ say join "\n" => VM::Debugger::CodeView->new(
             '.greet' => 0,
         },
 
-        stdout  => undef,
+        stdout  => [ 1 .. 10 ],
         stderr  => undef,
 
         pc      => 9,

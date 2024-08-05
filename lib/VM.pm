@@ -362,7 +362,7 @@ class VM {
             }
 
             if (DEBUG) {
-                say "\e[2J\e[H\n";
+                print "\e[2J\e[H\n";
                 say $debugger->display( $self->snapshot );
 
                 if ($clock) {
