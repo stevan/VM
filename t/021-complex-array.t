@@ -35,8 +35,7 @@ my $vm = VM->new(
 
             VM::Inst->label('.fill_array.loop.exit'),
 
-            VM::Inst->LOAD_ARG, 1,
-            VM::Inst->RETURN,
+            VM::Inst->RETURN, 0,
 
         VM::Inst->label('.main'),
 
@@ -61,7 +60,7 @@ my $vm = VM->new(
             VM::Inst->CALL, VM::Inst->marker('.fill_array'), 2,
 
             VM::Inst->LOAD, 1,
-            VM::Inst->FREE_MEM,
+            VM::Inst->CLEAR_MEM,
 
             # load the 3 item array
             VM::Inst->LOAD, 1,
@@ -70,6 +69,9 @@ my $vm = VM->new(
             VM::Inst->CALL, VM::Inst->marker('.fill_array'), 2,
 
             VM::Inst->LOAD, 0,
+            VM::Inst->FREE_MEM,
+
+            VM::Inst->LOAD, 1,
             VM::Inst->FREE_MEM,
 
             VM::Inst->HALT

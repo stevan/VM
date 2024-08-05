@@ -4,6 +4,7 @@ use v5.40;
 use experimental qw[ class ];
 
 use VM::Inst;
+use VM::Pointer;
 
 class VM::Assembler {
 
@@ -54,7 +55,10 @@ class VM::Assembler {
                         # add to the string table
                         push @strings => $line;
                         # and replace it with a ref to the index
-                        $line = \(my $x = $#strings);
+                        $line = VM::Pointer::String->new(
+                             address => $#strings,
+                             size    => length($line)
+                        );
                     }
 
                     $i++;

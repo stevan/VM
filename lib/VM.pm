@@ -10,6 +10,7 @@ use Time::HiRes  ();
 
 use VM::Inst;
 use VM::Error;
+use VM::Pointer;
 
 use VM::Assembler;
 use VM::Debugger;
@@ -211,11 +212,11 @@ class VM {
             my $v = $self->next_op;
             $self->PUSH($v);
         } elsif ($opcode isa VM::Inst::Op::CONST_STR) {
-            my $str_addr = $self->next_op;
+            my $str_ptr = $self->next_op;
 
             # TODO: throw an error if we dont find it
 
-            $self->PUSH( $strings[ $$str_addr ] );
+            $self->PUSH( $strings[ $str_ptr->address ] );
         }
         ## ------------------------------------
         ## MATH
@@ -325,54 +326,80 @@ class VM {
                 foreach 0 .. ($size - 1);
 
             my $next_prt = scalar @pointers;
-            $pointers[$next_prt] = +{ addr => $addr => size => $size, ptr => $next_prt };
+            $pointers[$next_prt] = VM::Pointer::Memory->new(
+                address => $addr,
+                size    => $size,
+                refaddr => $next_prt
+            );
+
             $self->PUSH( $pointers[-1] );
 
         } elsif ($opcode isa VM::Inst::Op::LOAD_MEM) {
             my $ptr    = $self->POP;
             my $offset = $self->POP;
 
-            # TODO: throw an error if this is already free
+            unless (defined $pointers[ $ptr->refaddr ]) {
+                return VM::Errors->MEMORY_ALREADY_FREED;
+            }
 
-            if ($offset >= $ptr->{size}) {
+            if ($offset >= $ptr->size) {
                 return VM::Errors->MEMORY_ACCESS_OUT_OF_BOUNDS;
             }
 
-            $self->PUSH( $memory[ $ptr->{addr} + $offset ] );
+            $self->PUSH( $memory[ $ptr->address + $offset ] );
 
         } elsif ($opcode isa VM::Inst::Op::STORE_MEM) {
             my $ptr    = $self->POP;
             my $offset = $self->POP;
             my $value  = $self->POP;
 
-            # TODO: throw an error if this is already free
+            unless (defined $pointers[ $ptr->refaddr ]) {
+                return VM::Errors->MEMORY_ALREADY_FREED;
+            }
 
-            if ($offset >= $ptr->{size}) {
+            if ($offset >= $ptr->size) {
                 return VM::Errors->MEMORY_ACCESS_OUT_OF_BOUNDS;
             }
 
-            $memory[ $ptr->{addr} + $offset ] = $value;
+            $memory[ $ptr->address + $offset ] = $value;
+
+        } elsif ($opcode isa VM::Inst::Op::CLEAR_MEM) {
+            my $ptr = $self->POP;
+
+            unless (defined $pointers[ $ptr->refaddr ]) {
+                return VM::Errors->MEMORY_ALREADY_FREED;
+            }
+
+            $memory[ $ptr->address + $_ ] = undef
+                foreach 0 .. ($ptr->size - 1);
 
         } elsif ($opcode isa VM::Inst::Op::FREE_MEM) {
             my $ptr = $self->POP;
 
-            $memory[ $ptr->{addr} + $_ ] = undef
-                foreach 0 .. ($ptr->{size} - 1);
+            unless (defined $pointers[ $ptr->refaddr ]) {
+                return VM::Errors->MEMORY_ALREADY_FREED;
+            }
 
-            # TODO: throw an error if this is already free
+            $memory[ $ptr->address + $_ ] = undef
+                foreach 0 .. ($ptr->size - 1);
 
-            $pointers[ $ptr->{ptr} ] = undef;
+            $pointers[ $ptr->refaddr ] = undef;
 
         } elsif ($opcode isa VM::Inst::Op::COPY_MEM) {
             my $from_ptr = $self->POP;
             my $to_ptr   = $self->POP;
 
-            if ($to_ptr->{size} != $from_ptr->{size}) {
+            unless (defined $pointers[ $from_ptr->refaddr ]
+                &&  defined $pointers[ $from_ptr->refaddr ]) {
+                return VM::Errors->MEMORY_ALREADY_FREED;
+            }
+
+            if ($to_ptr->size != $from_ptr->size) {
                 return VM::Errors->INCOMPATIBLE_POINTERS;
             }
 
-            $memory[ $to_ptr->{addr} + $_ ] = $memory[ $from_ptr->{addr} + $_ ]
-                foreach 0 .. ($to_ptr->{size} - 1);
+            $memory[ $to_ptr->address + $_ ] = $memory[ $from_ptr->address + $_ ]
+                foreach 0 .. ($to_ptr->size - 1);
         }
         elsif ($opcode isa VM::Inst::Op::COPY_MEM_FROM) {
             my $size     = $self->POP;
@@ -380,20 +407,27 @@ class VM {
             my $from_ptr = $self->POP;
             my $to_ptr   = $self->POP;
 
-            if ($size > $to_ptr->{size}
-            && ($offset + ($size - 1)) > $from_ptr->{size}) {
+            unless (defined $pointers[ $from_ptr->refaddr ]
+                &&  defined $pointers[ $from_ptr->refaddr ]) {
+                return VM::Errors->MEMORY_ALREADY_FREED;
+            }
+
+            if ($size > $to_ptr->size
+            && ($offset + ($size - 1)) > $from_ptr->size) {
                 return VM::Errors->MEMORY_ACCESS_OUT_OF_BOUNDS;
             }
 
-            $memory[ $to_ptr->{addr} + $_ ] = $memory[ ($from_ptr->{addr} + $offset) + $_ ]
+            $memory[ $to_ptr->address + $_ ] = $memory[ ($from_ptr->address + $offset) + $_ ]
                 foreach 0 .. ($size - 1);
         }
         ## ------------------------------------
         ## Call functions
         ## ------------------------------------
         elsif ($opcode isa VM::Inst::Op::LOAD_ARG) {
+
             my $offset = $self->next_op;
             $self->PUSH( $stack[($fp - 3) - $offset] );
+
         } elsif ($opcode isa VM::Inst::Op::CALL) {
             my $addr = $self->next_op; # func address to go to
             my $argc = $self->next_op; # number of args the function has ...
@@ -406,13 +440,25 @@ class VM {
             $pc = $addr; # and the program counter to the func addr
 
         } elsif ($opcode isa VM::Inst::Op::RETURN) {
-            my $rval = $self->POP;  # get the return value
-               $sp   = $fp;         # restore stack pointer
-               $pc   = $self->POP;  # get the stashed program counter
-               $fp   = $self->POP;  # get the stashed program frame pointer
-            my $argc = $self->POP;  # get the number of args
-               $sp  -= $argc;       # decrement stack pointer by num args
-            $self->PUSH($rval);     # push the return value onto the stack
+            my $rvalc = $self->next_op;
+
+            my @rvals;
+            if ($rvalc) {
+                foreach my $i ( 0 .. ($rvalc - 1)) {
+                    push @rvals => $self->POP;  # get the return values
+                }
+            }
+
+            $sp    = $fp;         # restore stack pointer
+            $pc    = $self->POP;  # get the stashed program counter
+            $fp    = $self->POP;  # get the stashed program frame pointer
+
+            my $argc  = $self->POP;  # get the number of args
+               $sp   -= $argc;       # decrement stack pointer by num args
+
+            foreach my $rval (@rvals) {
+                $self->PUSH($rval);     # push the return values onto the stack
+            }
         }
         ## ------------------------------------
         ## Stack Manipulation

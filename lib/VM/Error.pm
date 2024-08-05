@@ -18,6 +18,7 @@ package VM::Errors {
 
             MEMORY_ACCESS_OUT_OF_BOUNDS
             INCOMPATIBLE_POINTERS
+            MEMORY_ALREADY_FREED
         );
 
         foreach my $i (0 .. $#ERRORS) {

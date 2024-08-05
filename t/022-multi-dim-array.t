@@ -35,8 +35,7 @@ my $vm = VM->new(
 
             VM::Inst->label('.fill_array.loop.exit'),
 
-            VM::Inst->LOAD_ARG, 1,
-            VM::Inst->RETURN,
+            VM::Inst->RETURN, 0,
 
         VM::Inst->label('.fill_matrix'), # $inner_size, $outer_size, $ptr
             # $idx_outer
@@ -75,7 +74,7 @@ my $vm = VM->new(
             VM::Inst->label('.fill_matrix.outer.exit'),
 
             VM::Inst->LOAD_ARG, 2,
-            VM::Inst->RETURN,
+            VM::Inst->RETURN, 1,
 
         VM::Inst->label('.main'),
 

@@ -48,6 +48,7 @@ package VM::Inst {
             LOAD_MEM
             STORE_MEM
             FREE_MEM
+            CLEAR_MEM
             COPY_MEM
             COPY_MEM_FROM
 

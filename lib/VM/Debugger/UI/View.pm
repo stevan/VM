@@ -37,8 +37,8 @@ class VM::Debugger::UI::View {
     # utilities
 
     method format_const ($const) {
-        ref($const)
-            ? (sprintf '*[%s]<%04d>' => $const->{size}, $const->{addr})
+        blessed($const)
+            ? $const->to_string
             : (not(defined($const))
                 ? '~'
                 : (is_bool($const)

@@ -39,6 +39,7 @@ class VM::Inst::Op::JUMP_IF_FALSE :isa(VM::Inst::Op::UnOp) {}
 class VM::Inst::Op::LOAD          :isa(VM::Inst::Op::UnOp) {}
 class VM::Inst::Op::STORE         :isa(VM::Inst::Op::UnOp) {}
 class VM::Inst::Op::LOAD_ARG      :isa(VM::Inst::Op::UnOp) {}
+class VM::Inst::Op::RETURN        :isa(VM::Inst::Op::UnOp) {}
 # BinOps
 class VM::Inst::Op::CALL          :isa(VM::Inst::Op::BinOp) {}
 # StackOps
@@ -58,9 +59,9 @@ class VM::Inst::Op::ALLOC_MEM     :isa(VM::Inst::Op::StackOp) {}
 class VM::Inst::Op::LOAD_MEM      :isa(VM::Inst::Op::StackOp) {}
 class VM::Inst::Op::STORE_MEM     :isa(VM::Inst::Op::StackOp) {}
 class VM::Inst::Op::FREE_MEM      :isa(VM::Inst::Op::StackOp) {}
+class VM::Inst::Op::CLEAR_MEM     :isa(VM::Inst::Op::StackOp) {}
 class VM::Inst::Op::COPY_MEM      :isa(VM::Inst::Op::StackOp) {}
 class VM::Inst::Op::COPY_MEM_FROM :isa(VM::Inst::Op::StackOp) {}
-class VM::Inst::Op::RETURN        :isa(VM::Inst::Op::StackOp) {}
 class VM::Inst::Op::DUP           :isa(VM::Inst::Op::StackOp) {}
 class VM::Inst::Op::POP           :isa(VM::Inst::Op::StackOp) {}
 class VM::Inst::Op::SWAP          :isa(VM::Inst::Op::StackOp) {}

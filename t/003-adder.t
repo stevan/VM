@@ -12,7 +12,7 @@ my $vm = VM->new(
             VM::Inst->LOAD_ARG, 0,
             VM::Inst->DUP,
             VM::Inst->ADD_NUM,
-            VM::Inst->RETURN,
+            VM::Inst->RETURN, 1,
 
         VM::Inst->label('.main'),
             VM::Inst->CONST_NUM, 10,
