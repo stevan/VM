@@ -200,6 +200,8 @@ class VM {
 
         if ($opcode isa VM::Inst::Op::HALT) {
             $running = false;
+            $sp = -1;
+            $fp = 0;
         }
         ## ------------------------------------
         ## Constants
