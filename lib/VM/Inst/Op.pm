@@ -51,6 +51,7 @@ class VM::Inst::Op::LT_NUM        :isa(VM::Inst::Op::StackOp) {}
 class VM::Inst::Op::GT_NUM        :isa(VM::Inst::Op::StackOp) {}
 class VM::Inst::Op::EQ_NUM        :isa(VM::Inst::Op::StackOp) {}
 class VM::Inst::Op::CONCAT_STR    :isa(VM::Inst::Op::StackOp) {}
+class VM::Inst::Op::FORMAT_STR    :isa(VM::Inst::Op::StackOp) {}
 class VM::Inst::Op::LT_STR        :isa(VM::Inst::Op::StackOp) {}
 class VM::Inst::Op::GT_STR        :isa(VM::Inst::Op::StackOp) {}
 class VM::Inst::Op::EQ_STR        :isa(VM::Inst::Op::StackOp) {}

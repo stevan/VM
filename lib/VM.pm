@@ -36,6 +36,20 @@ class VM::State {
 
     field $running  :param :reader;
     field $error    :param :reader;
+
+    field @memory_blocks;
+
+    ADJUST {
+        $memory_blocks[VM::MemoryBlocks->STACK]  = $stack;
+        $memory_blocks[VM::MemoryBlocks->HEAP]   = $heap;
+        $memory_blocks[VM::MemoryBlocks->CODE]   = $code;
+        $memory_blocks[VM::MemoryBlocks->STATIC] = $static;
+    }
+
+    method deref_pointer ($p) {
+        return $memory_blocks[ $p->block ]->[ $p->address ] if $p->size == 1;
+        return $memory_blocks[ $p->block ]->@[ $p->address .. ($p->address + ($p->size - 1)) ];
+    }
 }
 
 class VM {
@@ -172,6 +186,48 @@ class VM {
 
     ## --------------------------------
 
+    method deref_pointer ($p) {
+        return $memory_blocks[ $p->block ]->[ $p->address ] if $p->size == 1;
+        return $memory_blocks[ $p->block ]->@[ $p->address .. ($p->address + ($p->size - 1)) ];
+    }
+
+    method heap_alloc ($size, $init=undef) {
+        my $addr = scalar @heap;
+        my @init;
+           @init = @$init if defined $init;
+
+        $heap[$addr + $_] = $init[$_] foreach 0 .. ($size - 1);
+
+        my $ptr_addr = scalar @pointers;
+        return $pointers[$ptr_addr] = VM::Pointer::Heap->new(
+            address  => $addr,
+            size     => $size,
+            ptr_addr => $ptr_addr,
+        );
+    }
+
+    method compact_heap {
+        return if scalar @heap == 0;
+        return if defined $heap[-1];
+
+        while (@heap && !defined $heap[-1]) {
+            warn "Heap ...";
+            pop @heap;
+        }
+    }
+
+    method compact_pointers {
+        return if scalar @pointers == 0;
+        return if defined $pointers[-1];
+
+        while (@pointers && !defined $pointers[-1]) {
+            warn "Ptr ...";
+            pop @pointers;
+        }
+    }
+
+    ## --------------------------------
+
     method run {
         $SIG{INT} = sub { die "Interuptted!"; };
 
@@ -233,7 +289,7 @@ class VM {
             # - make sure it is a STATICS type
             # - check for bounds issues
 
-            $self->PUSH( $static[ $str_ptr->address ] );
+            $self->PUSH( $str_ptr );
         }
         ## ------------------------------------
         ## MATH
@@ -272,7 +328,39 @@ class VM {
         elsif ($opcode isa VM::Inst::Op::CONCAT_STR) {
             my $b = $self->POP;
             my $a = $self->POP;
-            $self->PUSH( $a . $b );
+
+            warn '$b: ',$b;
+            warn '$a: ',$a;
+
+            my @a = $self->deref_pointer($a);
+            my @b = $self->deref_pointer($b);
+
+            warn '@a: ',@a;
+            warn '@b: ',@b;
+
+            my $str = join '' => @a, @b;
+
+            $self->PUSH( $self->heap_alloc( length $str, [ split '', $str ] ) );
+        }
+        elsif ($opcode isa VM::Inst::Op::FORMAT_STR) {
+            my $argc   = $self->POP;
+            my $format = $self->POP;
+               $format = join '' => $self->deref_pointer($format);
+
+            my @args;
+            foreach (1 .. $argc) {
+                my $arg = $self->POP;
+                if (blessed $arg && $arg isa VM::Pointer) {
+                    $arg = join '' => $self->deref_pointer($arg);
+                }
+                push @args => $arg;
+            }
+
+            #warn "ARGC: $argc FORMAT: $format ARGS: [".(join ', ' => @args)."]";
+
+            my $str = sprintf($format, @args);
+
+            $self->PUSH( $self->heap_alloc( length $str, [ split '', $str ] ) );
         }
         ## ------------------------------------
         ## Compariosons
@@ -343,21 +431,9 @@ class VM {
         ## Load/Store local heap
         ## ------------------------------------
         elsif ($opcode isa VM::Inst::Op::ALLOC_MEM) {
-
             my $size = $self->POP;
-            my $addr = scalar @heap;
 
-            $heap[$addr + $_] = undef
-                foreach 0 .. ($size - 1);
-
-            my $ptr_addr = scalar @pointers;
-            $pointers[$ptr_addr] = VM::Pointer::Heap->new(
-                address  => $addr,
-                size     => $size,
-                ptr_addr => $ptr_addr,
-            );
-
-            $self->PUSH( $pointers[$ptr_addr] );
+            $self->PUSH( $self->heap_alloc( $size ) );
 
         } elsif ($opcode isa VM::Inst::Op::LOAD_MEM) {
             my $ptr    = $self->POP;
@@ -421,6 +497,9 @@ class VM {
                 foreach 0 .. ($ptr->size - 1);
 
             $pointers[ $ptr->ptr_addr ] = undef;
+
+            $self->compact_heap;
+            $self->compact_pointers;
 
         } elsif ($opcode isa VM::Inst::Op::COPY_MEM) {
             my $from_ptr = $self->POP;
@@ -515,9 +594,15 @@ class VM {
         ## ------------------------------------
         elsif ($opcode isa VM::Inst::Op::PRINT) {
             my $v = $self->POP;
+               $v = join '' => $self->deref_pointer($v)
+                    if blessed $v && $v isa VM::Pointer;
+
             push @stdout => $v;
         } elsif ($opcode isa VM::Inst::Op::WARN) {
             my $v = $self->POP;
+               $v = join '' => $self->deref_pointer($v)
+                    if blessed $v && $v isa VM::Pointer;
+
             push @stderr => $v;
         }
         ## ------------------------------------

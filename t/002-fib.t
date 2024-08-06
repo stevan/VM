@@ -40,11 +40,17 @@ my $state = VM->new(
             VM::Inst->RETURN,
 
         VM::Inst->label('.main'),
-            VM::Inst->CONST_STR, "VM: ",
+
             VM::Inst->CONST_NUM, 5,
             VM::Inst->CALL, VM::Inst->marker('.fib'), 1,
-            VM::Inst->CONCAT_STR,
+
+            VM::Inst->CONST_STR, "VM: %d",
+            VM::Inst->CONST_NUM, 1,
+            VM::Inst->FORMAT_STR,
+
+            VM::Inst->DUP,
             VM::Inst->PRINT,
+            VM::Inst->FREE_MEM,
             VM::Inst->HALT
     ]
 )->assemble->run;

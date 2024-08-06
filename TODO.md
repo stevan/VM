@@ -2,10 +2,8 @@
 
 ## TODO:
 
-- should RETURN be able to return an amount of things?
-    - returning a single thing is easier
-        - and I think is how it is done
-    - if we do this, do we need a RETURN_VOID?
+- add ALLOC_FUNCTION_PTR
+- add CALL_DYNAMIC which accepts a function pointer
 
 - Pointers
     - NOTE: ALLOC_MEM only works on heap, and STATICS are pre-allocated

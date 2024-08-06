@@ -32,6 +32,7 @@ package VM::Inst {
             MOD_NUM
 
             CONCAT_STR
+            FORMAT_STR
 
             LT_NUM LT_STR
             GT_NUM GT_STR

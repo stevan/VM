@@ -52,10 +52,15 @@ class VM::Assembler {
                 } else {
                     # collect the string table ...
                     if ($prev_opcode && $prev_opcode isa VM::Inst::Op::CONST_STR) {
-                        # add to the string table
-                        push @statics => $line;
                         # and replace it with a ref to the index
-                        $line = VM::Pointer::Static->new( address => $#statics );
+                        my $ptr = VM::Pointer::Static->new(
+                            address => scalar(@statics),
+                            size    => length($line),
+                        );
+                        # add to the string table
+                        push @statics => split '', $line;
+
+                        $line = $ptr;
                     }
 
                     $i++;

@@ -21,7 +21,9 @@ my $state = VM->new(
         VM::Inst->label('.main'),
             VM::Inst->CONST_STR, "Joe",
             VM::Inst->CALL, VM::Inst->marker('.greet'), 1,
+            VM::Inst->DUP,
             VM::Inst->PRINT,
+            VM::Inst->FREE_MEM,
             VM::Inst->HALT
     ]
 )->assemble->run;

@@ -81,7 +81,7 @@ class VM::Debugger::CodeView :isa(VM::Debugger::UI::View) {
                     ($include_colors ? "\e[0;34m" : "").$val_fmt
                         => $name, join ', ' => map {
                                         if (blessed $_) {
-                                            $self->format_const($vm->static->[ $_->address ])
+                                            $self->format_const(join '' => $vm->deref_pointer($_))
                                         } elsif (exists $vm->labels->{$_}) {
                                             $_
                                         } else {
