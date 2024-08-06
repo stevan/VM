@@ -37,18 +37,18 @@ class VM::State {
     field $running  :param :reader;
     field $error    :param :reader;
 
-    field @memory_blocks;
+    field @regions;
 
     ADJUST {
-        $memory_blocks[VM::MemoryBlocks->STACK]  = $stack;
-        $memory_blocks[VM::MemoryBlocks->HEAP]   = $heap;
-        $memory_blocks[VM::MemoryBlocks->CODE]   = $code;
-        $memory_blocks[VM::MemoryBlocks->STATIC] = $static;
+        $regions[ VM::MemoryBlocks->STACK  ] = $stack;
+        $regions[ VM::MemoryBlocks->HEAP   ] = $heap;
+        $regions[ VM::MemoryBlocks->CODE   ] = $code;
+        $regions[ VM::MemoryBlocks->STATIC ] = $static;
     }
 
     method deref_pointer ($p) {
-        return $memory_blocks[ $p->block ]->[ $p->address ] if $p->size == 1;
-        return $memory_blocks[ $p->block ]->@[ $p->address .. ($p->address + ($p->size - 1)) ];
+        return $regions[ $p->block ]->[ $p->address ] if $p->size == 1;
+        return $regions[ $p->block ]->@[ $p->address .. ($p->address + ($p->size - 1)) ];
     }
 }
 
@@ -64,7 +64,7 @@ class VM {
     field $entry   :param;
     field $clock   :param = $ENV{CLOCK};
 
-    field @memory_blocks;
+    field @regions;
 
     field @code;
     field @stack;
@@ -92,12 +92,12 @@ class VM {
         $debugger  = VM::Debugger->new if DEBUG;
         $assembler = VM::Assembler->new;
 
-        # setup the memory blocks
-        $memory_blocks[VM::MemoryBlocks->NULL]   = VM::Pointer::Null->new;
-        $memory_blocks[VM::MemoryBlocks->STACK]  = \@stack;
-        $memory_blocks[VM::MemoryBlocks->HEAP]   = \@heap;
-        $memory_blocks[VM::MemoryBlocks->CODE]   = \@code;
-        $memory_blocks[VM::MemoryBlocks->STATIC] = \@static;
+        # setup the memory regions
+        $regions[ VM::MemoryBlocks->NULL   ] = VM::Pointer::Null->new;
+        $regions[ VM::MemoryBlocks->STACK  ] = \@stack;
+        $regions[ VM::MemoryBlocks->HEAP   ] = \@heap;
+        $regions[ VM::MemoryBlocks->CODE   ] = \@code;
+        $regions[ VM::MemoryBlocks->STATIC ] = \@static;
     }
 
     ## --------------------------------
@@ -124,14 +124,14 @@ class VM {
 
     method snapshot {
         return VM::State->new(
-            code     =>  [ @code    ],
-            stack    =>  [ @stack   ],
-            heap     =>  [ @heap  ],
-            labels   => +{ %labels  },
-            static   =>  [ @static ],
+            code     =>  [ @code     ],
+            stack    =>  [ @stack    ],
+            heap     =>  [ @heap     ],
+            labels   => +{ %labels   },
+            static   =>  [ @static   ],
             pointers =>  [ @pointers ],
-            stdout   =>  [ @stdout  ],
-            stderr   =>  [ @stderr  ],
+            stdout   =>  [ @stdout   ],
+            stderr   =>  [ @stderr   ],
             pc       => $pc,
             ic       => $ic,
             ci       => $ci,
@@ -187,8 +187,8 @@ class VM {
     ## --------------------------------
 
     method deref_pointer ($p) {
-        return $memory_blocks[ $p->block ]->[ $p->address ] if $p->size == 1;
-        return $memory_blocks[ $p->block ]->@[ $p->address .. ($p->address + ($p->size - 1)) ];
+        return $regions[ $p->block ]->[ $p->address ] if $p->size == 1;
+        return $regions[ $p->block ]->@[ $p->address .. ($p->address + ($p->size - 1)) ];
     }
 
     method heap_alloc ($size, $init=undef) {
