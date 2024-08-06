@@ -44,9 +44,7 @@ my $state = VM->new(
             VM::Inst->CONST_NUM, 5,
             VM::Inst->CALL, VM::Inst->marker('.fib'), 1,
 
-            VM::Inst->CONST_STR, "VM: %d",
-            VM::Inst->CONST_NUM, 1,
-            VM::Inst->FORMAT_STR,
+            VM::Inst->FORMAT_STR, "VM: %d", 1,
 
             VM::Inst->DUP,
             VM::Inst->PRINT,

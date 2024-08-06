@@ -1,7 +1,9 @@
 #!perl
 
 use v5.40;
-use experimental qw[ class ];
+use experimental qw[ class builtin ];
+
+use builtin qw[ is_bool created_as_string ];
 
 use VM::Inst;
 use VM::Pointer;
@@ -27,7 +29,6 @@ class VM::Assembler {
 
         {
             my $i = 0;
-            my $prev_opcode;
             foreach my $line (@$source) {
                 if (blessed $line) {
                     # replace markers with dualvar (to make display easier)
@@ -45,18 +46,18 @@ class VM::Assembler {
                     } elsif ($line isa VM::Inst::Op) {
                         $i++;
                         push @code => $line;
-                        # note the previous opcode so that
-                        # we can handle the string table
-                        $prev_opcode = $line;
                     }
                 } else {
                     # collect the string table ...
-                    if ($prev_opcode && $prev_opcode isa VM::Inst::Op::CONST_STR) {
+                    if (created_as_string($line)) {
                         # and replace it with a ref to the index
                         my $ptr = VM::Pointer::Static->new(
                             address => scalar(@statics),
                             size    => length($line),
                         );
+
+                        #warn "(${line})";
+
                         # add to the string table
                         push @statics => split '', $line;
 

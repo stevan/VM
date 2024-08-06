@@ -211,7 +211,7 @@ class VM {
         return if defined $heap[-1];
 
         while (@heap && !defined $heap[-1]) {
-            warn "Heap ...";
+            #warn "Heap ...";
             pop @heap;
         }
     }
@@ -221,7 +221,7 @@ class VM {
         return if defined $pointers[-1];
 
         while (@pointers && !defined $pointers[-1]) {
-            warn "Ptr ...";
+            #warn "Ptr ...";
             pop @pointers;
         }
     }
@@ -329,24 +329,24 @@ class VM {
             my $b = $self->POP;
             my $a = $self->POP;
 
-            warn '$b: ',$b;
-            warn '$a: ',$a;
+            #warn '$b: ',$b;
+            #warn '$a: ',$a;
 
             my @a = $self->deref_pointer($a);
             my @b = $self->deref_pointer($b);
 
-            warn '@a: ',@a;
-            warn '@b: ',@b;
+            #warn '@a: ',@a;
+            #warn '@b: ',@b;
 
             my $str = join '' => @a, @b;
 
             $self->PUSH( $self->heap_alloc( length $str, [ split '', $str ] ) );
         }
         elsif ($opcode isa VM::Inst::Op::FORMAT_STR) {
-            my $argc   = $self->POP;
-            my $format = $self->POP;
+            my $format = $self->next_op;
                $format = join '' => $self->deref_pointer($format);
 
+            my $argc = $self->next_op;
             my @args;
             foreach (1 .. $argc) {
                 my $arg = $self->POP;
@@ -594,13 +594,13 @@ class VM {
         ## ------------------------------------
         elsif ($opcode isa VM::Inst::Op::PRINT) {
             my $v = $self->POP;
-               $v = join '' => $self->deref_pointer($v)
+               $v = join '' => map { $_ // '' } $self->deref_pointer($v)
                     if blessed $v && $v isa VM::Pointer;
 
             push @stdout => $v;
         } elsif ($opcode isa VM::Inst::Op::WARN) {
             my $v = $self->POP;
-               $v = join '' => $self->deref_pointer($v)
+               $v = join '' =>  map { $_ // '' } $self->deref_pointer($v)
                     if blessed $v && $v isa VM::Pointer;
 
             push @stderr => $v;

@@ -28,8 +28,8 @@ my $state = VM->new(
             VM::Inst->RETURN,
 
         VM::Inst->label('.main'),
-            VM::Inst->CONST_STR, '20',
-            VM::Inst->CONST_STR, '10',
+            VM::Inst->CONST_STR, 'two',
+            VM::Inst->CONST_STR, 'one',
             VM::Inst->CONST_STR, ', ',
             VM::Inst->CALL, VM::Inst->marker('.join'), 3,
             VM::Inst->DUP,
@@ -43,7 +43,7 @@ subtest '... testing the vm end state' => sub {
     ok(!$state->error, '... we did not get an error');
     ok(!$state->running, '... and we are no longer running');
 
-    is_deeply($state->stdout, ['10, 20'], '... got the expected stdout');
+    is_deeply($state->stdout, ['one, two'], '... got the expected stdout');
     is_deeply($state->stderr, [], '... got the expected stderr');
 
     is((scalar grep defined, $state->pointers->@*), 0, '... all pointers were freed');

@@ -41,6 +41,7 @@ class VM::Inst::Op::STORE         :isa(VM::Inst::Op::UnOp) {}
 class VM::Inst::Op::LOAD_ARG      :isa(VM::Inst::Op::UnOp) {}
 # BinOps
 class VM::Inst::Op::CALL          :isa(VM::Inst::Op::BinOp) {}
+class VM::Inst::Op::FORMAT_STR    :isa(VM::Inst::Op::BinOp) {}
 # StackOps
 class VM::Inst::Op::ADD_NUM       :isa(VM::Inst::Op::StackOp) {}
 class VM::Inst::Op::SUB_NUM       :isa(VM::Inst::Op::StackOp) {}
@@ -51,7 +52,6 @@ class VM::Inst::Op::LT_NUM        :isa(VM::Inst::Op::StackOp) {}
 class VM::Inst::Op::GT_NUM        :isa(VM::Inst::Op::StackOp) {}
 class VM::Inst::Op::EQ_NUM        :isa(VM::Inst::Op::StackOp) {}
 class VM::Inst::Op::CONCAT_STR    :isa(VM::Inst::Op::StackOp) {}
-class VM::Inst::Op::FORMAT_STR    :isa(VM::Inst::Op::StackOp) {}
 class VM::Inst::Op::LT_STR        :isa(VM::Inst::Op::StackOp) {}
 class VM::Inst::Op::GT_STR        :isa(VM::Inst::Op::StackOp) {}
 class VM::Inst::Op::EQ_STR        :isa(VM::Inst::Op::StackOp) {}
