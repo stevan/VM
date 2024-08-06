@@ -378,20 +378,6 @@ class VM {
             my $a = $self->POP;
             $self->PUSH( $a == $b ? true : false );
         }
-        # ... for strings
-        elsif ($opcode isa VM::Inst::Op::LT_STR) {
-            my $b = $self->POP;
-            my $a = $self->POP;
-            $self->PUSH( $a lt $b ? true : false );
-        } elsif ($opcode isa VM::Inst::Op::GT_STR) {
-            my $b = $self->POP;
-            my $a = $self->POP;
-            $self->PUSH( $a gt $b ? true : false );
-        } elsif ($opcode isa VM::Inst::Op::EQ_STR) {
-            my $b = $self->POP;
-            my $a = $self->POP;
-            $self->PUSH( $a eq $b ? true : false );
-        }
         ## ------------------------------------
         ## Conditionals
         ## ------------------------------------
@@ -521,8 +507,8 @@ class VM {
                 foreach 0 .. ($to_ptr->size - 1);
         }
         elsif ($opcode isa VM::Inst::Op::COPY_MEM_FROM) {
-            my $size     = $self->POP;
-            my $offset   = $self->POP;
+            my $size     = $self->next_op;
+            my $offset   = $self->next_op;
             my $from_ptr = $self->POP;
             my $to_ptr   = $self->POP;
 

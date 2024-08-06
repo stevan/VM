@@ -61,9 +61,7 @@ my $state = VM->new(
 
             VM::Inst->LOAD, 0,
             VM::Inst->LOAD, 2,
-            VM::Inst->CONST_NUM, 1,
-            VM::Inst->CONST_NUM, 3,
-            VM::Inst->COPY_MEM_FROM,
+            VM::Inst->COPY_MEM_FROM, 1, 3,
 
             VM::Inst->LOAD, 1,
             VM::Inst->LOAD, 0,

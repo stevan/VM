@@ -34,9 +34,9 @@ package VM::Inst {
             CONCAT_STR
             FORMAT_STR
 
-            LT_NUM LT_STR
-            GT_NUM GT_STR
-            EQ_NUM EQ_STR
+            LT_NUM
+            GT_NUM
+            EQ_NUM
 
             JUMP
             JUMP_IF_TRUE
