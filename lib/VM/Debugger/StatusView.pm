@@ -17,7 +17,7 @@ class VM::Debugger::StatusView :isa(VM::Debugger::UI::View) {
 
     method recalculate {
         $self->rect_width  = $width + 4;
-        $self->rect_height = 15 + scalar $self->snapshot->statics->@*;
+        $self->rect_height = 15 + scalar $self->snapshot->static->@*;
     }
 
     method draw {
@@ -31,7 +31,7 @@ class VM::Debugger::StatusView :isa(VM::Debugger::UI::View) {
         #warn $anim_state;
         my $vm      = $self->snapshot;
         my $error   = $vm->error;
-        my @strings = $vm->statics->@*;
+        my @strings = $vm->static->@*;
 
         map { join '' => @$_ }
        ['╭─',('─' x $width),'─╮'],

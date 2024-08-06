@@ -2,23 +2,25 @@
 
 ## TODO:
 
-- rename MEM to HEAP
-- rename STRINGS to STATICS or CONSTS
+- should RETURN be able to return an amount of things?
+    - returning a single thing is easier
+        - and I think is how it is done
+    - if we do this, do we need a RETURN_VOID?
 
 - Pointers
-    - add from where it was allocated??
-        - stack of heap
-        - we only care if we are going to de-alloc stack things
-    - add NullPointer class??
-        - after FREE, put this there
-        - current `undef` basically funcions as this
+    - NOTE: ALLOC_MEM only works on heap, and STATICS are pre-allocated
 
+    - add code pointers
+        - need instruction to get a function pointer
+        - also need instruction to call a function from a pointer
+        - QUESTIONS
+            - should we store the function airty as the size???
 
-class Pointer {
-    field $address = 0x00; # the location of the pointer
-    field $bloack  = 0x00; # STACK, HEAP, CONSTS
-    field $size    = 0;    # number of contiguious cells
-}
+    - MAYBE add stack pointers
+        - need instruction to make a stack pointer
+        - need a way to deref one of these
+        - this might not be a good idea
+            - and get complicated with knowing when it is allocated, etc.
 
 
 - run should accept a number of cycles to perform

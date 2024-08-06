@@ -3,31 +3,37 @@
 use v5.40;
 use experimental qw[ class ];
 
-
-
-
-
+use VM::MemoryBlocks;
 
 class VM::Pointer {
     use overload '""' => 'to_string';
 
-    field $address :param :reader;
-
-    field $type :reader;
-    ADJUST { ($type) = __CLASS__ =~ /^VM::Pointer::(.)/ }
-
+    method address;
+    method block;
     method size;
 
-    method to_string { sprintf '*%s[%s]<%04d>' => $self->type, $self->size, $self->address }
+    method to_string {
+        sprintf '*%.1s[%s]<%04d>' => $self->block, $self->size, $self->address
+    }
 }
 
-# this is a static pointer
-class VM::Pointer::String :isa(VM::Pointer) {
-    field $size :param :reader;
+class VM::Pointer::Null :isa(VM::Pointer) {
+    use constant address => 0x00;
+    use constant block   => VM::MemoryBlocks->NULL;
+    use constant size    => 0;
 }
 
-# this is a dynamic pointer
-class VM::Pointer::Memory :isa(VM::Pointer) {
-    field $size    :param :reader;
-    field $refaddr :param :reader; # where in the pointer table does it live
+class VM::Pointer::Static :isa(VM::Pointer) {
+    use constant block => VM::MemoryBlocks->STATIC;
+
+    field $address :param :reader;
+    field $size    :param :reader = 1;
+}
+
+class VM::Pointer::Heap :isa(VM::Pointer) {
+    use constant block => VM::MemoryBlocks->HEAP;
+
+    field $address  :param :reader;
+    field $size     :param :reader;
+    field $ptr_addr :param :reader;
 }

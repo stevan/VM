@@ -15,12 +15,14 @@ use VM::Pointer;
 use VM::Assembler;
 use VM::Debugger;
 
+use VM::MemoryBlocks;
+
 class VM::State {
     field $code     :param :reader;
     field $stack    :param :reader;
     field $heap     :param :reader;
     field $labels   :param :reader;
-    field $statics  :param :reader;
+    field $static   :param :reader;
     field $pointers :param :reader;
 
     field $stdout   :param :reader;
@@ -48,11 +50,13 @@ class VM {
     field $entry   :param;
     field $clock   :param = $ENV{CLOCK};
 
+    field @memory_blocks;
+
     field @code;
     field @stack;
     field @heap;
     field %labels;
-    field @statics;
+    field @static;
     field @pointers;
 
     field @stdout;
@@ -73,6 +77,12 @@ class VM {
     ADJUST {
         $debugger  = VM::Debugger->new if DEBUG;
         $assembler = VM::Assembler->new;
+
+        # setup the memory blocks
+        $memory_blocks[VM::MemoryBlocks->STACK]  = \@stack;
+        $memory_blocks[VM::MemoryBlocks->HEAP]   = \@heap;
+        $memory_blocks[VM::MemoryBlocks->CODE]   = \@code;
+        $memory_blocks[VM::MemoryBlocks->STATIC] = \@static;
     }
 
     ## --------------------------------
@@ -86,11 +96,11 @@ class VM {
     ## --------------------------------
 
     method assemble {
-        my ($code, $labels, $statics) = $assembler->assemble($source);
+        my ($code, $labels, $static) = $assembler->assemble($source);
         $self->reset;
-        @code    = @$code;
-        %labels  = %$labels;
-        @statics = @$statics;
+        @code   = @$code;
+        %labels = %$labels;
+        @static = @$static;
         $pc     = $labels{ $entry } // die "Could not find entry point($entry) in source";
         return $self;
     }
@@ -101,9 +111,9 @@ class VM {
         return VM::State->new(
             code     =>  [ @code    ],
             stack    =>  [ @stack   ],
-            heap   =>  [ @heap  ],
+            heap     =>  [ @heap  ],
             labels   => +{ %labels  },
-            statics  =>  [ @statics ],
+            static   =>  [ @static ],
             pointers =>  [ @pointers ],
             stdout   =>  [ @stdout  ],
             stderr   =>  [ @stderr  ],
@@ -120,9 +130,9 @@ class VM {
     method restore ($state) {
         @code     = $state->code->@*;
         @stack    = $state->stack->@*;
-        @heap   = $state->heap->@*;
+        @heap     = $state->heap->@*;
         %labels   = $state->labels->%*;
-        @statics  = $state->statics->@*;
+        @static   = $state->static->@*;
         @pointers = $state->pointers->@*;
 
         @stdout = $state->stdout->@*;
@@ -141,9 +151,9 @@ class VM {
     method reset {
         @code     = ();
         @stack    = ();
-        @heap   = ();
+        @heap     = ();
         %labels   = ();
-        @statics  = ();
+        @static   = ();
         @pointers = ();
 
         @stdout = ();
@@ -218,9 +228,11 @@ class VM {
         } elsif ($opcode isa VM::Inst::Op::CONST_STR) {
             my $str_ptr = $self->next_op;
 
-            # TODO: throw an error if we dont find it
+            # TODO: throw an error if ...
+            # - make sure it is a STATICS type
+            # - check for bounds issues
 
-            $self->PUSH( $statics[ $str_ptr->address ] );
+            $self->PUSH( $static[ $str_ptr->address ] );
         }
         ## ------------------------------------
         ## MATH
@@ -312,10 +324,18 @@ class VM {
         ## ------------------------------------
         elsif ($opcode isa VM::Inst::Op::LOAD) {
             my $offset = $self->next_op;
+
+            # TODO: throw an error if ...
+            # - check for bounds issues
+
             $self->PUSH( $stack[$fp + $offset] );
         } elsif ($opcode isa VM::Inst::Op::STORE) {
             my $v      = $self->POP;
             my $offset = $self->next_op;
+
+            # TODO: throw an error if ...
+            # - check for bounds issues
+
             $stack[$fp + $offset] = $v;
         }
         ## ------------------------------------
@@ -329,20 +349,23 @@ class VM {
             $heap[$addr + $_] = undef
                 foreach 0 .. ($size - 1);
 
-            my $next_prt = scalar @pointers;
-            $pointers[$next_prt] = VM::Pointer::Memory->new(
-                address => $addr,
-                size    => $size,
-                refaddr => $next_prt
+            my $ptr_addr = scalar @pointers;
+            $pointers[$ptr_addr] = VM::Pointer::Heap->new(
+                address  => $addr,
+                size     => $size,
+                ptr_addr => $ptr_addr,
             );
 
-            $self->PUSH( $pointers[-1] );
+            $self->PUSH( $pointers[$ptr_addr] );
 
         } elsif ($opcode isa VM::Inst::Op::LOAD_MEM) {
             my $ptr    = $self->POP;
             my $offset = $self->POP;
 
-            unless (defined $pointers[ $ptr->refaddr ]) {
+            # TODO: throw an error if ...
+            # - make sure it is the right HEAP type
+
+            unless (defined $pointers[ $ptr->ptr_addr ]) {
                 return VM::Errors->MEMORY_ALREADY_FREED;
             }
 
@@ -357,7 +380,10 @@ class VM {
             my $offset = $self->POP;
             my $value  = $self->POP;
 
-            unless (defined $pointers[ $ptr->refaddr ]) {
+            # TODO: throw an error if ...
+            # - make sure it is the right HEAP type
+
+            unless (defined $pointers[ $ptr->ptr_addr ]) {
                 return VM::Errors->MEMORY_ALREADY_FREED;
             }
 
@@ -370,7 +396,10 @@ class VM {
         } elsif ($opcode isa VM::Inst::Op::CLEAR_MEM) {
             my $ptr = $self->POP;
 
-            unless (defined $pointers[ $ptr->refaddr ]) {
+            # TODO: throw an error if ...
+            # - make sure it is the right HEAP type
+
+            unless (defined $pointers[ $ptr->ptr_addr ]) {
                 return VM::Errors->MEMORY_ALREADY_FREED;
             }
 
@@ -380,21 +409,27 @@ class VM {
         } elsif ($opcode isa VM::Inst::Op::FREE_MEM) {
             my $ptr = $self->POP;
 
-            unless (defined $pointers[ $ptr->refaddr ]) {
+            # TODO: throw an error if ...
+            # - make sure it is the right HEAP type
+
+            unless (defined $pointers[ $ptr->ptr_addr ]) {
                 return VM::Errors->MEMORY_ALREADY_FREED;
             }
 
             $heap[ $ptr->address + $_ ] = undef
                 foreach 0 .. ($ptr->size - 1);
 
-            $pointers[ $ptr->refaddr ] = undef;
+            $pointers[ $ptr->ptr_addr ] = undef;
 
         } elsif ($opcode isa VM::Inst::Op::COPY_MEM) {
             my $from_ptr = $self->POP;
             my $to_ptr   = $self->POP;
 
-            unless (defined $pointers[ $from_ptr->refaddr ]
-                &&  defined $pointers[ $from_ptr->refaddr ]) {
+            # TODO: throw an error if ...
+            # - make sure it is the right HEAP type
+
+            unless (defined $pointers[ $from_ptr->ptr_addr ]
+                &&  defined $pointers[ $from_ptr->ptr_addr ]) {
                 return VM::Errors->MEMORY_ALREADY_FREED;
             }
 
@@ -411,8 +446,14 @@ class VM {
             my $from_ptr = $self->POP;
             my $to_ptr   = $self->POP;
 
-            unless (defined $pointers[ $from_ptr->refaddr ]
-                &&  defined $pointers[ $from_ptr->refaddr ]) {
+            # TODO: throw an error if ...
+            # - make the to it is the right HEAP type
+            # - but the other one can be from another
+            #   memory region if we want, but for now
+            #   it also needs to be a memory one
+
+            unless (defined $pointers[ $from_ptr->ptr_addr ]
+                &&  defined $pointers[ $from_ptr->ptr_addr ]) {
                 return VM::Errors->MEMORY_ALREADY_FREED;
             }
 

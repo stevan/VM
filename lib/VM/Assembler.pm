@@ -11,7 +11,7 @@ class VM::Assembler {
     method assemble ($source) {
         my %labels;
         my @code;
-        my @strings;
+        my @statics;
 
         {
             my $i = 0;
@@ -53,12 +53,9 @@ class VM::Assembler {
                     # collect the string table ...
                     if ($prev_opcode && $prev_opcode isa VM::Inst::Op::CONST_STR) {
                         # add to the string table
-                        push @strings => $line;
+                        push @statics => $line;
                         # and replace it with a ref to the index
-                        $line = VM::Pointer::String->new(
-                             address => $#strings,
-                             size    => length($line)
-                        );
+                        $line = VM::Pointer::Static->new( address => $#statics );
                     }
 
                     $i++;
@@ -67,6 +64,6 @@ class VM::Assembler {
             }
         }
 
-        return \@code, \%labels, \@strings;
+        return \@code, \%labels, \@statics;
     }
 }

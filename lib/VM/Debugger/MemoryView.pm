@@ -70,7 +70,7 @@ class VM::Debugger::MemoryView :isa(VM::Debugger::UI::View) {
             }
         } 0 .. $#memory),
         ['├─',('─' x $width),'─┤'],
-        ['│ ',(sprintf $title_fmt, 'Pointers'),' │'],
+        ['│ ',(sprintf $title_fmt, 'Managed Pointers'),' │'],
         ['├─',('─' x $width),'─┤'],
         @ptrs,
         ['╰─',('─' x $width),'─╯'],
