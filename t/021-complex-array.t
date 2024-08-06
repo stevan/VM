@@ -38,10 +38,7 @@ my $state = VM->new(
             VM::Inst->label('.fill_array.loop.exit'),
 
             VM::Inst->LOAD, 1,
-            VM::Inst->FORMAT_STR, "FILLED: %d", 1,
-            VM::Inst->DUP,
-            VM::Inst->WARN,
-            VM::Inst->FREE_MEM,
+            VM::Inst->WARNF, "FILLED: %d", 1,
 
             VM::Inst->RETURN, # TODO: make this void
 

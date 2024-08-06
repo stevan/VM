@@ -6,8 +6,6 @@
 - add CALL_DYNAMIC which accepts a function pointer
 
 - Pointers
-    - NOTE: ALLOC_MEM only works on heap, and STATICS are pre-allocated
-
     - add code pointers
         - need instruction to get a function pointer
         - also need instruction to call a function from a pointer

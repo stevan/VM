@@ -38,10 +38,7 @@ my $state = VM->new(
             VM::Inst->label('.fill_array.loop.exit'),
 
             VM::Inst->LOAD, 1,
-            VM::Inst->FORMAT_STR, "INNER: %d", 1,
-            VM::Inst->DUP,
-            VM::Inst->WARN,
-            VM::Inst->FREE_MEM,
+            VM::Inst->WARNF, "INNER: %d", 1,
 
             VM::Inst->RETURN, # TODO: make this void
 
@@ -82,10 +79,7 @@ my $state = VM->new(
             VM::Inst->label('.fill_matrix.outer.exit'),
 
             VM::Inst->LOAD, 1,
-            VM::Inst->FORMAT_STR, "OUTER: %d", 1,
-            VM::Inst->DUP,
-            VM::Inst->WARN,
-            VM::Inst->FREE_MEM,
+            VM::Inst->WARNF, "OUTER: %d", 1,
 
             VM::Inst->RETURN, # TODO: make this void
 

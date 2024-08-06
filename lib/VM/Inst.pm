@@ -64,6 +64,9 @@ package VM::Inst {
             PRINT
             WARN
 
+            PRINTF
+            WARNF
+
             HALT
         );
 

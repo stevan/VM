@@ -186,6 +186,16 @@ class VM {
 
     ## --------------------------------
 
+    method collect_stack_args ($argc) {
+        my @args;
+        foreach (1 .. $argc) {
+            my $arg = $self->POP;
+            push @args => $arg;
+        }
+
+        return @args;
+    }
+
     method deref_pointer ($p) {
         return $regions[ $p->block ]->[ $p->address ] if $p->size == 1;
         return $regions[ $p->block ]->@[ $p->address .. ($p->address + ($p->size - 1)) ];
@@ -329,34 +339,20 @@ class VM {
             my $b = $self->POP;
             my $a = $self->POP;
 
-            #warn '$b: ',$b;
-            #warn '$a: ',$a;
-
             my @a = $self->deref_pointer($a);
             my @b = $self->deref_pointer($b);
-
-            #warn '@a: ',@a;
-            #warn '@b: ',@b;
 
             my $str = join '' => @a, @b;
 
             $self->PUSH( $self->heap_alloc( length $str, [ split '', $str ] ) );
-        }
-        elsif ($opcode isa VM::Inst::Op::FORMAT_STR) {
+        } elsif ($opcode isa VM::Inst::Op::FORMAT_STR) {
             my $format = $self->next_op;
                $format = join '' => $self->deref_pointer($format);
 
             my $argc = $self->next_op;
-            my @args;
-            foreach (1 .. $argc) {
-                my $arg = $self->POP;
-                if (blessed $arg && $arg isa VM::Pointer) {
-                    $arg = join '' => $self->deref_pointer($arg);
-                }
-                push @args => $arg;
-            }
-
-            #warn "ARGC: $argc FORMAT: $format ARGS: [".(join ', ' => @args)."]";
+            my @args = map {
+                blessed $_ && $_ isa VM::Pointer ? join '' => $self->deref_pointer($_) : $_
+            } $self->collect_stack_args($argc);
 
             my $str = sprintf($format, @args);
 
@@ -590,6 +586,30 @@ class VM {
                     if blessed $v && $v isa VM::Pointer;
 
             push @stderr => $v;
+        } elsif ($opcode isa VM::Inst::Op::PRINTF) {
+            my $format = $self->next_op;
+               $format = join '' => $self->deref_pointer($format);
+
+            my $argc = $self->next_op;
+            my @args = map {
+                blessed $_ && $_ isa VM::Pointer ? join '' => map { $_ // '' } $self->deref_pointer($_) : $_
+            } $self->collect_stack_args($argc);
+
+            my $str = sprintf($format, @args);
+
+            push @stdout => $str;
+        } elsif ($opcode isa VM::Inst::Op::WARNF) {
+            my $format = $self->next_op;
+               $format = join '' => $self->deref_pointer($format);
+
+            my $argc = $self->next_op;
+            my @args = map {
+                blessed $_ && $_ isa VM::Pointer ? join '' => map { $_ // '' } $self->deref_pointer($_) : $_
+            } $self->collect_stack_args($argc);
+
+            my $str = sprintf($format, @args);
+
+            push @stderr => $str;
         }
         ## ------------------------------------
         else {

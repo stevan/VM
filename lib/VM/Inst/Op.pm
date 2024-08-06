@@ -42,7 +42,9 @@ class VM::Inst::Op::LOAD_ARG      :isa(VM::Inst::Op::UnOp) {}
 # BinOps
 class VM::Inst::Op::CALL          :isa(VM::Inst::Op::BinOp) {}
 class VM::Inst::Op::FORMAT_STR    :isa(VM::Inst::Op::BinOp) {}
-class VM::Inst::Op::COPY_MEM_FROM :isa(VM::Inst::Op::StackOp) {}
+class VM::Inst::Op::PRINTF        :isa(VM::Inst::Op::BinOp) {}
+class VM::Inst::Op::WARNF         :isa(VM::Inst::Op::BinOp) {}
+class VM::Inst::Op::COPY_MEM_FROM :isa(VM::Inst::Op::BinOp) {}
 # StackOps
 class VM::Inst::Op::ADD_NUM       :isa(VM::Inst::Op::StackOp) {}
 class VM::Inst::Op::SUB_NUM       :isa(VM::Inst::Op::StackOp) {}
