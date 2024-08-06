@@ -25,7 +25,7 @@ my $state = VM->new(
             VM::Inst->EQ_NUM,
             VM::Inst->JUMP_IF_FALSE, VM::Inst->marker('.factorial.1'),
             VM::Inst->CONST_NUM, 1,
-            VM::Inst->RETURN, 1,
+            VM::Inst->RETURN,
         VM::Inst->label('.factorial.1'),
             VM::Inst->LOAD_ARG, 0,
             VM::Inst->CONST_NUM, 1,
@@ -33,7 +33,7 @@ my $state = VM->new(
             VM::Inst->CALL, VM::Inst->marker('.factorial'), 1,
             VM::Inst->LOAD_ARG, 0,
             VM::Inst->MUL_NUM,
-            VM::Inst->RETURN, 1,
+            VM::Inst->RETURN,
 
 
         VM::Inst->label('.main'),

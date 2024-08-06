@@ -486,25 +486,16 @@ class VM {
             $pc = $addr; # and the program counter to the func addr
 
         } elsif ($opcode isa VM::Inst::Op::RETURN) {
-            my $rvalc = $self->next_op;
+            my $return_val = $self->POP; # pop the return value from the stack
 
-            my @rvals;
-            if ($rvalc) {
-                foreach my $i ( 0 .. ($rvalc - 1)) {
-                    push @rvals => $self->POP;  # get the return values
-                }
-            }
-
-            $sp    = $fp;         # restore stack pointer
-            $pc    = $self->POP;  # get the stashed program counter
-            $fp    = $self->POP;  # get the stashed program frame pointer
+            $sp = $fp;         # restore stack pointer
+            $pc = $self->POP;  # get the stashed program counter
+            $fp = $self->POP;  # get the stashed program frame pointer
 
             my $argc  = $self->POP;  # get the number of args
                $sp   -= $argc;       # decrement stack pointer by num args
 
-            foreach my $rval (@rvals) {
-                $self->PUSH($rval);     # push the return values onto the stack
-            }
+            $self->PUSH($return_val); # push the return value onto the stack
         }
         ## ------------------------------------
         ## Stack Manipulation

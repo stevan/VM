@@ -19,17 +19,14 @@ my $state = VM->new(
             VM::Inst->LOAD, 1,
             VM::Inst->STORE_MEM,
 
-            VM::Inst->LOAD_ARG, 0,
             VM::Inst->LOAD, 1,
-            VM::Inst->RETURN, 2,
+            VM::Inst->RETURN,
 
         VM::Inst->label('.main'),
 
             # the size of the array
             VM::Inst->CONST_NUM, 5,
             VM::Inst->CALL, VM::Inst->marker('.create_array'), 1,
-
-            VM::Inst->PRINT, # print the size
 
             VM::Inst->DUP,      # dup the pointer on the stack
             VM::Inst->PRINT,    # print the pointer
@@ -43,7 +40,7 @@ subtest '... testing the vm end state' => sub {
     ok(!$state->error, '... we did not get an error');
     ok(!$state->running, '... and we are no longer running');
 
-    is_deeply($state->stdout, [ 5,'*H[5]<0000>' ], '... got the expected stdout');
+    is_deeply($state->stdout, [ '*H[5]<0000>' ], '... got the expected stdout');
     is_deeply($state->stderr, [], '... got the expected stderr');
 
     is((scalar grep defined, $state->pointers->@*), 0, '... all pointers were freed');

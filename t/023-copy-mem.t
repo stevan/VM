@@ -37,7 +37,7 @@ my $state = VM->new(
 
             VM::Inst->label('.fill_array.loop.exit'),
 
-            VM::Inst->RETURN, 0,
+            VM::Inst->RETURN, # TODO: make this void
 
         VM::Inst->label('.main'),
 

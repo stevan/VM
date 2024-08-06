@@ -16,7 +16,7 @@ my $state = VM->new(
             VM::Inst->CONCAT_STR,
             VM::Inst->CONST_STR, "... hi!",
             VM::Inst->WARN,
-            VM::Inst->RETURN, 1,
+            VM::Inst->RETURN,
 
         VM::Inst->label('.main'),
             VM::Inst->CONST_STR, "Joe",

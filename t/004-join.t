@@ -17,7 +17,7 @@ my $state = VM->new(
             VM::Inst->CONCAT_STR,
             VM::Inst->LOAD_ARG, 2,
             VM::Inst->CONCAT_STR,
-            VM::Inst->RETURN, 1,
+            VM::Inst->RETURN,
 
         VM::Inst->label('.main'),
             VM::Inst->CONST_NUM, 20,

@@ -42,7 +42,7 @@ my $state = VM->new(
             VM::Inst->CONCAT_STR,
             VM::Inst->WARN,
 
-            VM::Inst->RETURN, 0,
+            VM::Inst->RETURN, # TODO: make this void
 
         VM::Inst->label('.main'),
 

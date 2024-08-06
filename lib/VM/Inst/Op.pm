@@ -39,7 +39,6 @@ class VM::Inst::Op::JUMP_IF_FALSE :isa(VM::Inst::Op::UnOp) {}
 class VM::Inst::Op::LOAD          :isa(VM::Inst::Op::UnOp) {}
 class VM::Inst::Op::STORE         :isa(VM::Inst::Op::UnOp) {}
 class VM::Inst::Op::LOAD_ARG      :isa(VM::Inst::Op::UnOp) {}
-class VM::Inst::Op::RETURN        :isa(VM::Inst::Op::UnOp) {}
 # BinOps
 class VM::Inst::Op::CALL          :isa(VM::Inst::Op::BinOp) {}
 # StackOps
@@ -67,7 +66,7 @@ class VM::Inst::Op::POP           :isa(VM::Inst::Op::StackOp) {}
 class VM::Inst::Op::SWAP          :isa(VM::Inst::Op::StackOp) {}
 class VM::Inst::Op::PRINT         :isa(VM::Inst::Op::StackOp) {}
 class VM::Inst::Op::WARN          :isa(VM::Inst::Op::StackOp) {}
-
+class VM::Inst::Op::RETURN        :isa(VM::Inst::Op::StackOp) {}
 
 
 
