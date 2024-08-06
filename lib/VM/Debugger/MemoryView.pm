@@ -22,7 +22,7 @@ class VM::Debugger::MemoryView :isa(VM::Debugger::UI::View) {
         $self->rect_height += 2 if $title; # add two for the height of the title bar
         # add the number of memory cells to it
         $self->rect_height +=
-            (scalar $self->snapshot->memory->@*) + 5 +
+            (scalar $self->snapshot->heap->@*) + 5 +
             (scalar $self->snapshot->pointers->@*);
 
     }
@@ -32,7 +32,7 @@ class VM::Debugger::MemoryView :isa(VM::Debugger::UI::View) {
         state @memory_colors;
         state @memory_pointers;
 
-        my @memory   = $self->snapshot->memory->@*;
+        my @memory   = $self->snapshot->heap->@*;
         my @pointers = $self->snapshot->pointers->@*;
 
         my $title_fmt = "%-".$width."s";

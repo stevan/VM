@@ -18,9 +18,9 @@ use VM::Debugger;
 class VM::State {
     field $code     :param :reader;
     field $stack    :param :reader;
-    field $memory   :param :reader;
+    field $heap     :param :reader;
     field $labels   :param :reader;
-    field $strings  :param :reader;
+    field $statics  :param :reader;
     field $pointers :param :reader;
 
     field $stdout   :param :reader;
@@ -50,9 +50,9 @@ class VM {
 
     field @code;
     field @stack;
-    field @memory;
+    field @heap;
     field %labels;
-    field @strings;
+    field @statics;
     field @pointers;
 
     field @stdout;
@@ -86,11 +86,11 @@ class VM {
     ## --------------------------------
 
     method assemble {
-        my ($code, $labels, $strings) = $assembler->assemble($source);
+        my ($code, $labels, $statics) = $assembler->assemble($source);
         $self->reset;
         @code    = @$code;
         %labels  = %$labels;
-        @strings = @$strings;
+        @statics = @$statics;
         $pc     = $labels{ $entry } // die "Could not find entry point($entry) in source";
         return $self;
     }
@@ -101,9 +101,9 @@ class VM {
         return VM::State->new(
             code     =>  [ @code    ],
             stack    =>  [ @stack   ],
-            memory   =>  [ @memory  ],
+            heap   =>  [ @heap  ],
             labels   => +{ %labels  },
-            strings  =>  [ @strings ],
+            statics  =>  [ @statics ],
             pointers =>  [ @pointers ],
             stdout   =>  [ @stdout  ],
             stderr   =>  [ @stderr  ],
@@ -120,9 +120,9 @@ class VM {
     method restore ($state) {
         @code     = $state->code->@*;
         @stack    = $state->stack->@*;
-        @memory   = $state->memory->@*;
+        @heap   = $state->heap->@*;
         %labels   = $state->labels->%*;
-        @strings  = $state->strings->@*;
+        @statics  = $state->statics->@*;
         @pointers = $state->pointers->@*;
 
         @stdout = $state->stdout->@*;
@@ -141,9 +141,9 @@ class VM {
     method reset {
         @code     = ();
         @stack    = ();
-        @memory   = ();
+        @heap   = ();
         %labels   = ();
-        @strings  = ();
+        @statics  = ();
         @pointers = ();
 
         @stdout = ();
@@ -220,7 +220,7 @@ class VM {
 
             # TODO: throw an error if we dont find it
 
-            $self->PUSH( $strings[ $str_ptr->address ] );
+            $self->PUSH( $statics[ $str_ptr->address ] );
         }
         ## ------------------------------------
         ## MATH
@@ -308,7 +308,7 @@ class VM {
             }
         }
         ## ------------------------------------
-        ## Load/Store stack memory
+        ## Load/Store stack heap
         ## ------------------------------------
         elsif ($opcode isa VM::Inst::Op::LOAD) {
             my $offset = $self->next_op;
@@ -319,14 +319,14 @@ class VM {
             $stack[$fp + $offset] = $v;
         }
         ## ------------------------------------
-        ## Load/Store local memory
+        ## Load/Store local heap
         ## ------------------------------------
         elsif ($opcode isa VM::Inst::Op::ALLOC_MEM) {
 
             my $size = $self->POP;
-            my $addr = scalar @memory;
+            my $addr = scalar @heap;
 
-            $memory[$addr + $_] = undef
+            $heap[$addr + $_] = undef
                 foreach 0 .. ($size - 1);
 
             my $next_prt = scalar @pointers;
@@ -350,7 +350,7 @@ class VM {
                 return VM::Errors->MEMORY_ACCESS_OUT_OF_BOUNDS;
             }
 
-            $self->PUSH( $memory[ $ptr->address + $offset ] );
+            $self->PUSH( $heap[ $ptr->address + $offset ] );
 
         } elsif ($opcode isa VM::Inst::Op::STORE_MEM) {
             my $ptr    = $self->POP;
@@ -365,7 +365,7 @@ class VM {
                 return VM::Errors->MEMORY_ACCESS_OUT_OF_BOUNDS;
             }
 
-            $memory[ $ptr->address + $offset ] = $value;
+            $heap[ $ptr->address + $offset ] = $value;
 
         } elsif ($opcode isa VM::Inst::Op::CLEAR_MEM) {
             my $ptr = $self->POP;
@@ -374,7 +374,7 @@ class VM {
                 return VM::Errors->MEMORY_ALREADY_FREED;
             }
 
-            $memory[ $ptr->address + $_ ] = undef
+            $heap[ $ptr->address + $_ ] = undef
                 foreach 0 .. ($ptr->size - 1);
 
         } elsif ($opcode isa VM::Inst::Op::FREE_MEM) {
@@ -384,7 +384,7 @@ class VM {
                 return VM::Errors->MEMORY_ALREADY_FREED;
             }
 
-            $memory[ $ptr->address + $_ ] = undef
+            $heap[ $ptr->address + $_ ] = undef
                 foreach 0 .. ($ptr->size - 1);
 
             $pointers[ $ptr->refaddr ] = undef;
@@ -402,7 +402,7 @@ class VM {
                 return VM::Errors->INCOMPATIBLE_POINTERS;
             }
 
-            $memory[ $to_ptr->address + $_ ] = $memory[ $from_ptr->address + $_ ]
+            $heap[ $to_ptr->address + $_ ] = $heap[ $from_ptr->address + $_ ]
                 foreach 0 .. ($to_ptr->size - 1);
         }
         elsif ($opcode isa VM::Inst::Op::COPY_MEM_FROM) {
@@ -421,7 +421,7 @@ class VM {
                 return VM::Errors->MEMORY_ACCESS_OUT_OF_BOUNDS;
             }
 
-            $memory[ $to_ptr->address + $_ ] = $memory[ ($from_ptr->address + $offset) + $_ ]
+            $heap[ $to_ptr->address + $_ ] = $heap[ ($from_ptr->address + $offset) + $_ ]
                 foreach 0 .. ($size - 1);
         }
         ## ------------------------------------
