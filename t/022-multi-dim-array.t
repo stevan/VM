@@ -135,7 +135,7 @@ subtest '... testing the vm end state' => sub {
     ], '... got the expected stderr');
 
     is((scalar grep defined, $state->pointers->@*), 0, '... all pointers were freed');
-    is((scalar grep defined, $state->memory->@*), 0, '... all memory was freed');
+    is((scalar grep defined, $state->heap->@*), 0, '... all memory was freed');
 };
 
 done_testing;

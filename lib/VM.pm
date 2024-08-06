@@ -79,6 +79,7 @@ class VM {
         $assembler = VM::Assembler->new;
 
         # setup the memory blocks
+        $memory_blocks[VM::MemoryBlocks->NULL]   = VM::Pointer::Null->new;
         $memory_blocks[VM::MemoryBlocks->STACK]  = \@stack;
         $memory_blocks[VM::MemoryBlocks->HEAP]   = \@heap;
         $memory_blocks[VM::MemoryBlocks->CODE]   = \@code;

@@ -43,11 +43,11 @@ subtest '... testing the vm end state' => sub {
     ok(!$state->error, '... we did not get an error');
     ok(!$state->running, '... and we are no longer running');
 
-    is_deeply($state->stdout, [ 5,'*M[5]<0000>' ], '... got the expected stdout');
+    is_deeply($state->stdout, [ 5,'*H[5]<0000>' ], '... got the expected stdout');
     is_deeply($state->stderr, [], '... got the expected stderr');
 
     is((scalar grep defined, $state->pointers->@*), 0, '... all pointers were freed');
-    is((scalar grep defined, $state->memory->@*), 0, '... all memory was freed');
+    is((scalar grep defined, $state->heap->@*), 0, '... all memory was freed');
 };
 
 done_testing;
