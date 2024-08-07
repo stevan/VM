@@ -71,22 +71,34 @@ class VM::Pointer {
     field $mem  :param :reader;
     field $addr :param :reader;
 
-    # navigating ...
+    # :---------:-------------:
+    # : Pointer semanitics    :
+    # :---------:-------------:
+    # : inc     : ++p         :
+    # : dec     : --p         :
+    # : move_by : p += x      :
+    # :---------:-------------:
+    # : index   : p->[x]      :
+    # : defer   : &p          :
+    # :---------:-------------:
+    # : offset  : p2 = p + x  :
+    # : copy    : *p2 = &p    : # I think this is correct C :)
+    # :---------:-------------:
 
+    # navigating ...
     method inc          { $addr++;   $self }
     method dec          { $addr--;   $self }
     method move_by ($s) { $addr+=$s; $self }
 
     # dereferencing ...
-
-    method index :lvalue ($idx) { $mem->at( $addr + $idx ) }
-    method deref :lvalue        { $mem->at( $addr )        }
+    method index :lvalue ($i) { $mem->at( $addr + $i ) }
+    method deref :lvalue      { $mem->at( $addr )      }
 
     # copying ...
-
     method offset ($o) { VM::Pointer->new( addr => ($addr + $o), mem => $mem ) }
     method copy        { VM::Pointer->new( addr => $addr,        mem => $mem ) }
 
+    # ...
     method to_string { sprintf '*<%04d>' => $addr }
 }
 
