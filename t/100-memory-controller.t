@@ -10,177 +10,74 @@ use List::Util ();
 
 ## ----------------------------------------------------------------------------
 
-class VM::Memory::Array {
+class VM::Pointer {
     use overload '""' => \&to_string;
 
-    field $head :param :reader;
-    field $size :param :reader;
-
-    method region { $head->region  }
-    method addr   { $head->addr    }
-
-    method inc         { $head->inc        }
-    method dec         { $head->dec        }
-    method offset ($o) { $head->offset($o) }
-
-    method to_string { sprintf '*[%d]%.1s<%04d>' => $size, $head->region, $head->addr }
-}
-
-class VM::Memory::Pointer {
-    use overload '""' => \&to_string;
-
-    field $region :param :reader;
+    field $memory :param :reader;
     field $addr   :param :reader;
 
-    # mutators
+    method inc { __CLASS__->new( addr => $addr + 1, memory => $memory ) }
+    method dec { __CLASS__->new( addr => $addr - 1, memory => $memory ) }
 
-    method inc {
-        return $self->clone( addr => $addr + 1 );
-    }
+    method offset ($offset) { __CLASS__->new( addr => $addr + $offset, memory => $memory ) }
 
-    method dec {
-        return $self->clone( addr => $addr - 1 );
-    }
+    method read         { $memory->at( $addr ) }
+    method write ($val) { $memory->at( $addr ) = $val }
 
-    method offset ($o) {
-        return $self->clone( addr => $addr + $o );
-    }
-
-    # internal ...
-
-    method clone (%changes) {
-        return __CLASS__->new(
-            region => ($changes{region} // $region),
-            addr   => ($changes{addr}   // $addr),
-        );
-    }
-
-    method to_string { sprintf '*%.1s<%04d>' => $region, $addr }
-}
-
-## ----------------------------------------------------------------------------
-
-class VM::Memory::Region {
-    use constant ROOT   => Scalar::Util::dualvar(0, 'ROOT'  );
-    use constant CODE   => Scalar::Util::dualvar(1, 'CODE'  );
-    use constant DATA   => Scalar::Util::dualvar(2, 'DATA'  );
-    use constant STACK  => Scalar::Util::dualvar(3, 'STACK' );
-    use constant HEAP   => Scalar::Util::dualvar(4, 'HEAP'  );
+    method to_string { sprintf '*<%04d>' => $addr }
 }
 
 class VM::Memory {
-    field $root_size  :reader = 5;
-    field $code_size  :param :reader;
-    field $data_size  :param :reader;
-    field $stack_size :param :reader;
-    field $heap_size  :param :reader;
-
-    field $size :reader;
     field @words;
 
-    ADJUST {
-        $size = 0;
-
-        $words[ VM::Memory::Region->ROOT ] = VM::Memory::Array->new(
-            size => $root_size,
-            head => VM::Memory::Pointer->new(
-                region => VM::Memory::Region->ROOT,
-                addr   => $size,
-            )
-        );
-
-        $size += $root_size;
-        $words[ VM::Memory::Region->CODE ] = VM::Memory::Array->new(
-            size => $code_size,
-            head => VM::Memory::Pointer->new(
-                region => VM::Memory::Region->CODE,
-                addr   => $size,
-            )
-        );
-
-        $size += $code_size;
-        $words[ VM::Memory::Region->DATA ] = VM::Memory::Array->new(
-            size => $data_size,
-            head => VM::Memory::Pointer->new(
-                region => VM::Memory::Region->DATA,
-                addr   => $size,
-            )
-        );
-
-        $size += $data_size;
-        $words[ VM::Memory::Region->STACK ] = VM::Memory::Array->new(
-            size => $stack_size,
-            head => VM::Memory::Pointer->new(
-                region => VM::Memory::Region->STACK,
-                addr   => $size,
-            )
-        );
-
-        $size += $stack_size;
-        $words[ VM::Memory::Region->HEAP ] = VM::Memory::Array->new(
-            size => $heap_size,
-            head => VM::Memory::Pointer->new(
-                region => VM::Memory::Region->HEAP,
-                addr   => $size,
-            )
-        );
-
-        $size += $heap_size;
-
-        $words[$size] = undef;
+    method alloc ($size, $init=0E0) {
+        my $addr = scalar @words;
+        $words[ $addr + $_ ] = $init foreach 0 .. ($size - 1);
+        return VM::Pointer->new( addr => $addr, memory => $self );
     }
 
-    method deref ($ptr) { $words[ $ptr->addr ] }
-
-    method peek ($addr)        { $words[$addr]         }
-    method poke ($addr, $word) { $words[$addr] = $word }
+    method at :lvalue ($addr) { $words[$addr] }
 
     method dump { @words }
 }
 
 ## ----------------------------------------------------------------------------
 
-my $ram = VM::Memory->new(
-    code_size  => 10,
-    data_size  => 10,
-    stack_size => 10,
-    heap_size  => 10,
-);
+class VM::Program::Region {
+    use constant CODE   => Scalar::Util::dualvar(0, 'CODE'  );
+    use constant DATA   => Scalar::Util::dualvar(1, 'DATA'  );
+    use constant STACK  => Scalar::Util::dualvar(2, 'STACK' );
+    use constant HEAP   => Scalar::Util::dualvar(3, 'HEAP'  );
+}
 
 my @regions = (
-    VM::Memory::Region->CODE,
-    VM::Memory::Region->DATA,
-    VM::Memory::Region->STACK,
-    VM::Memory::Region->HEAP
+    VM::Program::Region->CODE,
+    VM::Program::Region->DATA,
+    VM::Program::Region->STACK,
+    VM::Program::Region->HEAP
 );
 
-my $root = $ram->peek( VM::Memory::Region->ROOT );
+my $mem = VM::Memory->new;
+
+my $root = $mem->alloc(scalar @regions);
 
 foreach my $region (@regions) {
-    my $r = $ram->deref( $root->offset( $region ) );
-
-    for (my ($p, $i) = ($r, 0); $i < $r->size; ($p, $i) = ($p->inc, $i + 1) ) {
-        $ram->poke( $p->addr, sprintf "%s:%d" => $p->region, $i );
-    }
+    $root->offset($region)->write( $mem->alloc(10, $region) );
 }
 
-my $data = $ram->deref( $root->offset( VM::Memory::Region->DATA ));
-my $heap = $ram->deref( $root->offset( VM::Memory::Region->HEAP ));
+my $data = $root->offset(VM::Program::Region->DATA)->read;
+my $heap = $root->offset(VM::Program::Region->HEAP)->read;
 
-warn $data;
-warn $heap;
-
-my ($from, $to) = ($data->head, $heap->head);
-foreach my $i ( 0 .. 5 ) {
-    $ram->poke( $to->addr, $from );
-    ($from, $to) = ($from->inc, $to->inc);
+foreach (0 .. 3) {
+    $data->write( $heap );
+    $data = $data->inc;
+    $heap = $heap->inc;
 }
-
 
 my $x = 0;
 say join "\n" => map {
     sprintf '%05d : %s', $x++, $_ // '~'
-} $ram->dump;
+} $mem->dump;
 
 
 
