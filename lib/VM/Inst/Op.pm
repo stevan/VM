@@ -31,7 +31,9 @@ class VM::Inst::Op::CONST_NIL     :isa(VM::Inst::Op::ZeroOp) {}
 class VM::Inst::Op::CONST_TRUE    :isa(VM::Inst::Op::ZeroOp) {}
 class VM::Inst::Op::CONST_FALSE   :isa(VM::Inst::Op::ZeroOp) {}
 # UnOps
-class VM::Inst::Op::CONST_NUM     :isa(VM::Inst::Op::UnOp) {}
+class VM::Inst::Op::CONST_INT     :isa(VM::Inst::Op::UnOp) {}
+class VM::Inst::Op::CONST_CHAR    :isa(VM::Inst::Op::UnOp) {}
+class VM::Inst::Op::CONST_FLOAT   :isa(VM::Inst::Op::UnOp) {}
 class VM::Inst::Op::CONST_STR     :isa(VM::Inst::Op::UnOp) {}
 class VM::Inst::Op::JUMP          :isa(VM::Inst::Op::UnOp) {}
 class VM::Inst::Op::JUMP_IF_TRUE  :isa(VM::Inst::Op::UnOp) {}
@@ -46,14 +48,25 @@ class VM::Inst::Op::PRINTF        :isa(VM::Inst::Op::BinOp) {}
 class VM::Inst::Op::WARNF         :isa(VM::Inst::Op::BinOp) {}
 class VM::Inst::Op::COPY_MEM_FROM :isa(VM::Inst::Op::BinOp) {}
 # StackOps
-class VM::Inst::Op::ADD_NUM       :isa(VM::Inst::Op::StackOp) {}
-class VM::Inst::Op::SUB_NUM       :isa(VM::Inst::Op::StackOp) {}
-class VM::Inst::Op::MUL_NUM       :isa(VM::Inst::Op::StackOp) {}
-class VM::Inst::Op::DIV_NUM       :isa(VM::Inst::Op::StackOp) {}
-class VM::Inst::Op::MOD_NUM       :isa(VM::Inst::Op::StackOp) {}
-class VM::Inst::Op::LT_NUM        :isa(VM::Inst::Op::StackOp) {}
-class VM::Inst::Op::GT_NUM        :isa(VM::Inst::Op::StackOp) {}
-class VM::Inst::Op::EQ_NUM        :isa(VM::Inst::Op::StackOp) {}
+class VM::Inst::Op::ADD_INT       :isa(VM::Inst::Op::StackOp) {}
+class VM::Inst::Op::SUB_INT       :isa(VM::Inst::Op::StackOp) {}
+class VM::Inst::Op::MUL_INT       :isa(VM::Inst::Op::StackOp) {}
+class VM::Inst::Op::DIV_INT       :isa(VM::Inst::Op::StackOp) {}
+class VM::Inst::Op::MOD_INT       :isa(VM::Inst::Op::StackOp) {}
+class VM::Inst::Op::ADD_FLOAT     :isa(VM::Inst::Op::StackOp) {}
+class VM::Inst::Op::SUB_FLOAT     :isa(VM::Inst::Op::StackOp) {}
+class VM::Inst::Op::MUL_FLOAT     :isa(VM::Inst::Op::StackOp) {}
+class VM::Inst::Op::DIV_FLOAT     :isa(VM::Inst::Op::StackOp) {}
+class VM::Inst::Op::MOD_FLOAT     :isa(VM::Inst::Op::StackOp) {}
+class VM::Inst::Op::LT_INT        :isa(VM::Inst::Op::StackOp) {}
+class VM::Inst::Op::GT_INT        :isa(VM::Inst::Op::StackOp) {}
+class VM::Inst::Op::EQ_INT        :isa(VM::Inst::Op::StackOp) {}
+class VM::Inst::Op::LT_FLOAT      :isa(VM::Inst::Op::StackOp) {}
+class VM::Inst::Op::GT_FLOAT      :isa(VM::Inst::Op::StackOp) {}
+class VM::Inst::Op::EQ_FLOAT      :isa(VM::Inst::Op::StackOp) {}
+class VM::Inst::Op::LT_CHAR       :isa(VM::Inst::Op::StackOp) {}
+class VM::Inst::Op::GT_CHAR       :isa(VM::Inst::Op::StackOp) {}
+class VM::Inst::Op::EQ_CHAR       :isa(VM::Inst::Op::StackOp) {}
 class VM::Inst::Op::CONCAT_STR    :isa(VM::Inst::Op::StackOp) {}
 class VM::Inst::Op::ALLOC_MEM     :isa(VM::Inst::Op::StackOp) {}
 class VM::Inst::Op::LOAD_MEM      :isa(VM::Inst::Op::StackOp) {}

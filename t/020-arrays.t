@@ -16,37 +16,37 @@ my $state = VM->new(
             # this will put the address
             # of the first cell on the
             # top of the stack
-            VM::Inst->CONST_NUM, 3,
+            VM::Inst->CONST_INT, 3,
             VM::Inst->ALLOC_MEM,
 
             # add the values to the array
             VM::Inst->CONST_STR, "Joe",
-            VM::Inst->CONST_NUM, 0,
+            VM::Inst->CONST_INT, 0,
             VM::Inst->LOAD, 0,
             VM::Inst->STORE_MEM,
 
-            VM::Inst->CONST_NUM, 10,
-            VM::Inst->CONST_NUM, 1,
+            VM::Inst->CONST_INT, 10,
+            VM::Inst->CONST_INT, 1,
             VM::Inst->LOAD, 0,
             VM::Inst->STORE_MEM,
 
             VM::Inst->CONST_TRUE,
-            VM::Inst->CONST_NUM, 2,
+            VM::Inst->CONST_INT, 2,
             VM::Inst->LOAD, 0,
             VM::Inst->STORE_MEM,
 
             # now print them ..
-            VM::Inst->CONST_NUM, 2,
+            VM::Inst->CONST_INT, 2,
             VM::Inst->LOAD, 0,
             VM::Inst->LOAD_MEM,
             VM::Inst->PRINT,
 
-            VM::Inst->CONST_NUM, 1,
+            VM::Inst->CONST_INT, 1,
             VM::Inst->LOAD, 0,
             VM::Inst->LOAD_MEM,
             VM::Inst->PRINT,
 
-            VM::Inst->CONST_NUM, 0,
+            VM::Inst->CONST_INT, 0,
             VM::Inst->LOAD, 0,
             VM::Inst->LOAD_MEM,
             VM::Inst->PRINT,

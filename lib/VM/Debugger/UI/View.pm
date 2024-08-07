@@ -10,7 +10,7 @@ use List::Util   ();
 use Time::HiRes  ();
 
 use VM::Inst;
-use VM::Error;
+use VM::Errors;
 
 class VM::Debugger::UI::View {
     field $snapshot :reader;
@@ -42,7 +42,7 @@ class VM::Debugger::UI::View {
             : (not(defined($const))
                 ? '~'
                 : (is_bool($const)
-                    ? ($const ? '#t' : '#f')
+                    ? ($const ? '!T' : '!F')
                     : (Scalar::Util::looks_like_number($const)
                         ? $const
                         : (length($const) > 20

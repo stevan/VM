@@ -10,7 +10,7 @@ use List::Util   ();
 use Time::HiRes  ();
 
 use VM::Inst;
-use VM::Error;
+use VM::Errors;
 
 class VM::Debugger::MemoryView :isa(VM::Debugger::UI::View) {
     field $width :param;

@@ -9,7 +9,7 @@ use Scalar::Util ();
 use Time::HiRes  ();
 
 use VM::Inst;
-use VM::Error;
+use VM::Errors;
 use VM::Pointer;
 
 use VM::Assembler;
@@ -112,6 +112,12 @@ class VM {
 
     method assemble {
         my ($code, $labels, $static) = $assembler->assemble($source);
+
+        #foreach my $c (@$code) {
+        #    say $c;
+        #}
+        #die;
+
         $self->reset;
         @code   = @$code;
         %labels = %$labels;
@@ -244,12 +250,19 @@ class VM {
         $error   = undef;
         $running = true;
 
+        my $err_msg;
         while ($running) {
             $ci = $pc;
             my $opcode = $self->next_op;
 
-            if ($error = $self->run_opcode( $opcode )) {
+            try {
+                if ($error = $self->run_opcode( $opcode )) {
+                    $running = false;
+                }
+            } catch ($e) {
+                $error   = VM::Errors->FATAL_ERROR;
                 $running = false;
+                $err_msg = $e;
             }
 
             $ic++;
@@ -265,6 +278,8 @@ class VM {
                 }
             }
         }
+
+        die "Got Fatal Error: ${err_msg}" if $err_msg;
 
         return $self->snapshot;
     }
@@ -284,53 +299,97 @@ class VM {
         ## Constants
         ## ------------------------------------
         elsif ($opcode isa VM::Inst::Op::CONST_NIL) {
-            $self->PUSH(undef);
+            $self->PUSH(VM::Inst::Literal::NIL->new);
         } elsif ($opcode isa VM::Inst::Op::CONST_TRUE) {
-            $self->PUSH(true);
+            $self->PUSH(VM::Inst::Literal::TRUE->new);
         } elsif ($opcode isa VM::Inst::Op::CONST_FALSE) {
-            $self->PUSH(false);
-        } elsif ($opcode isa VM::Inst::Op::CONST_NUM) {
+            $self->PUSH(VM::Inst::Literal::FALSE->new);
+        } elsif ($opcode isa VM::Inst::Op::CONST_INT) {
+            my $v = $self->next_op;
+            $self->PUSH($v);
+        } elsif ($opcode isa VM::Inst::Op::CONST_FLOAT) {
             my $v = $self->next_op;
             $self->PUSH($v);
         } elsif ($opcode isa VM::Inst::Op::CONST_STR) {
             my $str_ptr = $self->next_op;
-
-            # TODO: throw an error if ...
-            # - make sure it is a STATICS type
-            # - check for bounds issues
-
             $self->PUSH( $str_ptr );
         }
         ## ------------------------------------
         ## MATH
         ## ------------------------------------
-        elsif ($opcode isa VM::Inst::Op::ADD_NUM) {
+        # ints ...
+        elsif ($opcode isa VM::Inst::Op::ADD_INT) {
             my $b = $self->POP;
             my $a = $self->POP;
-            $self->PUSH( $a + $b );
-        } elsif ($opcode isa VM::Inst::Op::SUB_NUM) {
+            $self->PUSH( VM::Inst::Literal::INT->new( value => $a->value + $b->value ) );
+        } elsif ($opcode isa VM::Inst::Op::SUB_INT) {
             my $b = $self->POP;
             my $a = $self->POP;
-            $self->PUSH( $a - $b );
-        } elsif ($opcode isa VM::Inst::Op::MUL_NUM) {
+            $self->PUSH( VM::Inst::Literal::INT->new( value => $a->value - $b->value ) );
+        } elsif ($opcode isa VM::Inst::Op::MUL_INT) {
             my $b = $self->POP;
             my $a = $self->POP;
-            $self->PUSH( $a * $b );
-        } elsif ($opcode isa VM::Inst::Op::DIV_NUM) {
+            $self->PUSH( VM::Inst::Literal::INT->new( value => $a->value * $b->value ) );
+        } elsif ($opcode isa VM::Inst::Op::DIV_INT) {
             my $b = $self->POP;
             my $a = $self->POP;
             if ( $b == 0 ) {
                 return VM::Errors->ILLEGAL_DIVISION_BY_ZERO;
             }
             # TODO : handle div by zero error here
-            $self->PUSH( $a / $b );
-        } elsif ($opcode isa VM::Inst::Op::MOD_NUM) {
+            $self->PUSH( VM::Inst::Literal::INT->new( value => $a->value / $b->value ) );
+        } elsif ($opcode isa VM::Inst::Op::MOD_INT) {
             my $b = $self->POP;
             my $a = $self->POP;
             if ( $b == 0 ) {
                 return VM::Errors->ILLEGAL_MOD_BY_ZERO;
             }
-            $self->PUSH( $a % $b );
+            $self->PUSH( VM::Inst::Literal::INT->new( value => $a->value % $b->value ) );
+        }
+        # floats ...
+        elsif ($opcode isa VM::Inst::Op::ADD_FLOAT) {
+            my $b = $self->POP;
+            my $a = $self->POP;
+            $self->PUSH( VM::Inst::Literal::FLOAT->new( value => $a->value + $b->value ) );
+        } elsif ($opcode isa VM::Inst::Op::SUB_FLOAT) {
+            my $b = $self->POP;
+            my $a = $self->POP;
+            $self->PUSH( VM::Inst::Literal::FLOAT->new( value => $a->value - $b->value ) );
+        } elsif ($opcode isa VM::Inst::Op::MUL_FLOAT) {
+            my $b = $self->POP;
+            my $a = $self->POP;
+            $self->PUSH( VM::Inst::Literal::FLOAT->new( value => $a->value * $b->value ) );
+        } elsif ($opcode isa VM::Inst::Op::DIV_FLOAT) {
+            my $b = $self->POP;
+            my $a = $self->POP;
+            if ( $b == 0 ) {
+                return VM::Errors->ILLEGAL_DIVISION_BY_ZERO;
+            }
+            # TODO : handle div by zero error here
+            $self->PUSH( VM::Inst::Literal::FLOAT->new( value => $a->value / $b->value ) );
+        } elsif ($opcode isa VM::Inst::Op::MOD_FLOAT) {
+            my $b = $self->POP;
+            my $a = $self->POP;
+            if ( $b == 0 ) {
+                return VM::Errors->ILLEGAL_MOD_BY_ZERO;
+            }
+            $self->PUSH( VM::Inst::Literal::FLOAT->new( value => $a->value % $b->value ) );
+        }
+        ## ------------------------------------
+        ## Compariosons
+        ## ------------------------------------
+        elsif ($opcode isa VM::Inst::Op::LT_INT || $opcode isa VM::Inst::Op::LT_FLOAT || $opcode isa VM::Inst::Op::LT_CHAR) {
+            my $b = $self->POP;
+            my $a = $self->POP;
+            $self->PUSH( $a->value < $b->value ? VM::Inst::Literal::TRUE->new : VM::Inst::Literal::FALSE->new );
+        } elsif ($opcode isa VM::Inst::Op::GT_INT || $opcode isa VM::Inst::Op::GT_FLOAT || $opcode isa VM::Inst::Op::GT_CHAR) {
+            my $b = $self->POP;
+            my $a = $self->POP;
+            $self->PUSH( $a->value > $b->value ? VM::Inst::Literal::TRUE->new : VM::Inst::Literal::FALSE->new );
+        } elsif ($opcode isa VM::Inst::Op::EQ_INT || $opcode isa VM::Inst::Op::EQ_FLOAT || $opcode isa VM::Inst::Op::EQ_CHAR) {
+            my $b = $self->POP;
+            my $a = $self->POP;
+            $self->PUSH( $a->value == $b->value ? VM::Inst::Literal::TRUE->new : VM::Inst::Literal::FALSE->new );
         }
         ## ------------------------------------
         ## String Operations
@@ -342,37 +401,33 @@ class VM {
             my @a = $self->deref_pointer($a);
             my @b = $self->deref_pointer($b);
 
-            my $str = join '' => @a, @b;
+            my $str = join '' => map {
+                $_ isa VM::Inst::Literal ? $_->value : $_
+            } @a, @b;
 
-            $self->PUSH( $self->heap_alloc( length $str, [ split '', $str ] ) );
+            $self->PUSH( $self->heap_alloc( length $str, [
+                map { VM::Inst::Literal::CHAR->new( value => $_ ) } split '', $str
+            ]));
         } elsif ($opcode isa VM::Inst::Op::FORMAT_STR) {
             my $format = $self->next_op;
-               $format = join '' => $self->deref_pointer($format);
+               $format = join '' => map {
+                    $_ isa VM::Inst::Literal ? $_->value : $_
+                } $self->deref_pointer($format);
 
             my $argc = $self->next_op;
             my @args = map {
-                blessed $_ && $_ isa VM::Pointer ? join '' => $self->deref_pointer($_) : $_
+                $_ isa VM::Pointer
+                    ? join '' => map {
+                            $_ isa VM::Inst::Literal ? $_->value : $_
+                        } $self->deref_pointer($_)
+                    : $_->value
             } $self->collect_stack_args($argc);
 
             my $str = sprintf($format, @args);
 
-            $self->PUSH( $self->heap_alloc( length $str, [ split '', $str ] ) );
-        }
-        ## ------------------------------------
-        ## Compariosons
-        ## ------------------------------------
-        elsif ($opcode isa VM::Inst::Op::LT_NUM) {
-            my $b = $self->POP;
-            my $a = $self->POP;
-            $self->PUSH( $a < $b ? true : false );
-        } elsif ($opcode isa VM::Inst::Op::GT_NUM) {
-            my $b = $self->POP;
-            my $a = $self->POP;
-            $self->PUSH( $a > $b ? true : false );
-        } elsif ($opcode isa VM::Inst::Op::EQ_NUM) {
-            my $b = $self->POP;
-            my $a = $self->POP;
-            $self->PUSH( $a == $b ? true : false );
+            $self->PUSH( $self->heap_alloc( length $str, [
+                map { VM::Inst::Literal::CHAR->new( value => $_ ) } split '', $str
+            ]));
         }
         ## ------------------------------------
         ## Conditionals
@@ -381,12 +436,14 @@ class VM {
             $pc = $self->next_op;
         } elsif ($opcode isa VM::Inst::Op::JUMP_IF_TRUE) {
             my $addr = $self->next_op;
-            if ($self->POP == true) {
+            my $bool = $self->POP;
+            if ($bool isa VM::Inst::Literal::TRUE) {
                 $pc = $addr;
             }
         } elsif ($opcode isa VM::Inst::Op::JUMP_IF_FALSE) {
             my $addr = $self->next_op;
-            if ($self->POP == false) {
+            my $bool = $self->POP;
+            if ($bool isa VM::Inst::Literal::FALSE) {
                 $pc = $addr;
             }
         }
@@ -415,7 +472,7 @@ class VM {
         elsif ($opcode isa VM::Inst::Op::ALLOC_MEM) {
             my $size = $self->POP;
 
-            $self->PUSH( $self->heap_alloc( $size ) );
+            $self->PUSH( $self->heap_alloc( $size->value ) );
 
         } elsif ($opcode isa VM::Inst::Op::LOAD_MEM) {
             my $ptr    = $self->POP;
@@ -428,11 +485,11 @@ class VM {
                 return VM::Errors->MEMORY_ALREADY_FREED;
             }
 
-            if ($offset >= $ptr->size) {
+            if ($offset->value >= $ptr->size) {
                 return VM::Errors->MEMORY_ACCESS_OUT_OF_BOUNDS;
             }
 
-            $self->PUSH( $heap[ $ptr->address + $offset ] );
+            $self->PUSH( $heap[ $ptr->address + $offset->value ] );
 
         } elsif ($opcode isa VM::Inst::Op::STORE_MEM) {
             my $ptr    = $self->POP;
@@ -446,11 +503,11 @@ class VM {
                 return VM::Errors->MEMORY_ALREADY_FREED;
             }
 
-            if ($offset >= $ptr->size) {
+            if ($offset->value >= $ptr->size) {
                 return VM::Errors->MEMORY_ACCESS_OUT_OF_BOUNDS;
             }
 
-            $heap[ $ptr->address + $offset ] = $value;
+            $heap[ $ptr->address + $offset->value ] = $value;
 
         } elsif ($opcode isa VM::Inst::Op::CLEAR_MEM) {
             my $ptr = $self->POP;
@@ -576,23 +633,43 @@ class VM {
         ## ------------------------------------
         elsif ($opcode isa VM::Inst::Op::PRINT) {
             my $v = $self->POP;
-               $v = join '' => map { $_ // '' } $self->deref_pointer($v)
+               $v = $v->value if blessed $v && $v isa VM::Inst::Literal;
+               $v = join '' => map {
+                            blessed $_ && $_ isa VM::Inst::Literal
+                                ? $_->value
+                                : $_ // '~'
+                        } $self->deref_pointer($v)
                     if blessed $v && $v isa VM::Pointer;
 
             push @stdout => $v;
         } elsif ($opcode isa VM::Inst::Op::WARN) {
             my $v = $self->POP;
-               $v = join '' =>  map { $_ // '' } $self->deref_pointer($v)
+               $v = $v->value if blessed $v && $v isa VM::Inst::Literal;
+               $v = join '' => map {
+                            blessed $_ && $_ isa VM::Inst::Literal
+                                ? $_->value
+                                : $_ // '~'
+                        } $self->deref_pointer($v)
                     if blessed $v && $v isa VM::Pointer;
 
             push @stderr => $v;
         } elsif ($opcode isa VM::Inst::Op::PRINTF) {
             my $format = $self->next_op;
-               $format = join '' => $self->deref_pointer($format);
+               $format = join '' => map {
+                            blessed $_ && $_ isa VM::Inst::Literal
+                                ? $_->value
+                                : $_ // '~'
+                        } $self->deref_pointer($format);
 
             my $argc = $self->next_op;
             my @args = map {
-                blessed $_ && $_ isa VM::Pointer ? join '' => map { $_ // '' } $self->deref_pointer($_) : $_
+                blessed $_ && $_ isa VM::Pointer
+                    ? join '' => map {
+                            blessed $_ && $_ isa VM::Inst::Literal
+                                ? $_->value
+                                : $_ // '~'
+                        } $self->deref_pointer($_)
+                    : $_->value
             } $self->collect_stack_args($argc);
 
             my $str = sprintf($format, @args);
@@ -600,11 +677,21 @@ class VM {
             push @stdout => $str;
         } elsif ($opcode isa VM::Inst::Op::WARNF) {
             my $format = $self->next_op;
-               $format = join '' => $self->deref_pointer($format);
+               $format = join '' => map {
+                            blessed $_ && $_ isa VM::Inst::Literal
+                                ? $_->value
+                                : $_ // '~'
+                        } $self->deref_pointer($format);
 
             my $argc = $self->next_op;
             my @args = map {
-                blessed $_ && $_ isa VM::Pointer ? join '' => map { $_ // '' } $self->deref_pointer($_) : $_
+                blessed $_ && $_ isa VM::Pointer
+                    ? join '' => map {
+                            blessed $_ && $_ isa VM::Inst::Literal
+                                ? $_->value
+                                : $_ // '~'
+                        } $self->deref_pointer($_)
+                    : $_->value
             } $self->collect_stack_args($argc);
 
             my $str = sprintf($format, @args);

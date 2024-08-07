@@ -12,14 +12,14 @@ my $state = VM->new(
     source => [
         VM::Inst->label('.fill_array'),
             # $idx
-            VM::Inst->CONST_NUM, 0,
+            VM::Inst->CONST_INT, 0,
 
             VM::Inst->label('.fill_array.loop'),
 
                 # ($idx == $size)
                 VM::Inst->LOAD_ARG, 0,
                 VM::Inst->LOAD, 1,
-                VM::Inst->EQ_NUM,
+                VM::Inst->EQ_INT,
                 VM::Inst->JUMP_IF_TRUE, VM::Inst->marker('.fill_array.loop.exit'),
 
                 VM::Inst->LOAD, 1,
@@ -29,8 +29,8 @@ my $state = VM->new(
 
                 # increment the $idx
                 VM::Inst->LOAD, 1,
-                VM::Inst->CONST_NUM, 1,
-                VM::Inst->ADD_NUM,
+                VM::Inst->CONST_INT, 1,
+                VM::Inst->ADD_INT,
                 VM::Inst->STORE, 1,
 
                 VM::Inst->JUMP, VM::Inst->marker('.fill_array.loop'),
@@ -44,14 +44,14 @@ my $state = VM->new(
 
         VM::Inst->label('.fill_matrix'), # $inner_size, $outer_size, $ptr
             # $idx_outer
-            VM::Inst->CONST_NUM, 0,
+            VM::Inst->CONST_INT, 0,
 
             VM::Inst->label('.fill_matrix.outer'),
 
                 # ($idx_outer == $outer_size)
                 VM::Inst->LOAD_ARG, 1,
                 VM::Inst->LOAD, 1,
-                VM::Inst->EQ_NUM,
+                VM::Inst->EQ_INT,
                 VM::Inst->JUMP_IF_TRUE, VM::Inst->marker('.fill_matrix.outer.exit'),
 
                 # alloc inner array
@@ -70,8 +70,8 @@ my $state = VM->new(
 
                 # increment the $idx_outer
                 VM::Inst->LOAD, 1,
-                VM::Inst->CONST_NUM, 1,
-                VM::Inst->ADD_NUM,
+                VM::Inst->CONST_INT, 1,
+                VM::Inst->ADD_INT,
                 VM::Inst->STORE, 1,
 
                 VM::Inst->JUMP, VM::Inst->marker('.fill_matrix.outer'),
@@ -86,27 +86,27 @@ my $state = VM->new(
         VM::Inst->label('.main'),
 
             # allocate 3 cells
-            VM::Inst->CONST_NUM, 3,
+            VM::Inst->CONST_INT, 3,
             VM::Inst->ALLOC_MEM,
 
             VM::Inst->DUP,
             # the size of the array
-            VM::Inst->CONST_NUM, 3,
+            VM::Inst->CONST_INT, 3,
             # the size of the sub arrays
-            VM::Inst->CONST_NUM, 5,
+            VM::Inst->CONST_INT, 5,
             VM::Inst->CALL, VM::Inst->marker('.fill_matrix'), 3,
 
-            VM::Inst->CONST_NUM, 0,
+            VM::Inst->CONST_INT, 0,
             VM::Inst->LOAD, 0,
             VM::Inst->LOAD_MEM,
             VM::Inst->FREE_MEM,
 
-            VM::Inst->CONST_NUM, 2,
+            VM::Inst->CONST_INT, 2,
             VM::Inst->LOAD, 0,
             VM::Inst->LOAD_MEM,
             VM::Inst->FREE_MEM,
 
-            VM::Inst->CONST_NUM, 1,
+            VM::Inst->CONST_INT, 1,
             VM::Inst->LOAD, 0,
             VM::Inst->LOAD_MEM,
             VM::Inst->FREE_MEM,

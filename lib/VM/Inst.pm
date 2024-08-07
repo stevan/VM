@@ -22,21 +22,37 @@ package VM::Inst {
             CONST_TRUE
             CONST_FALSE
 
-            CONST_NUM
+            CONST_INT
+            CONST_FLOAT
+            CONST_CHAR
             CONST_STR
 
-            ADD_NUM
-            SUB_NUM
-            MUL_NUM
-            DIV_NUM
-            MOD_NUM
+            ADD_INT
+            SUB_INT
+            MUL_INT
+            DIV_INT
+            MOD_INT
+
+            ADD_FLOAT
+            SUB_FLOAT
+            MUL_FLOAT
+            DIV_FLOAT
+            MOD_FLOAT
 
             CONCAT_STR
             FORMAT_STR
 
-            LT_NUM
-            GT_NUM
-            EQ_NUM
+            LT_INT
+            GT_INT
+            EQ_INT
+
+            LT_FLOAT
+            GT_FLOAT
+            EQ_FLOAT
+
+            LT_CHAR
+            GT_CHAR
+            EQ_CHAR
 
             JUMP
             JUMP_IF_TRUE

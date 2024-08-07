@@ -10,7 +10,7 @@ use List::Util   ();
 use Time::HiRes  ();
 
 use VM::Inst;
-use VM::Error;
+use VM::Errors;
 
 use VM::Debugger::CodeView;
 use VM::Debugger::StackView;

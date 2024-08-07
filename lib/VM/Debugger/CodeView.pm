@@ -10,7 +10,7 @@ use List::Util   ();
 use Time::HiRes  ();
 
 use VM::Inst;
-use VM::Error;
+use VM::Errors;
 
 class VM::Debugger::CodeView :isa(VM::Debugger::UI::View) {
     field $width  :param :reader;
@@ -80,8 +80,14 @@ class VM::Debugger::CodeView :isa(VM::Debugger::UI::View) {
             sprintf(($include_colors ? "\e[0;32m" : "").$op_fmt.
                     ($include_colors ? "\e[0;34m" : "").$val_fmt
                         => $name, join ', ' => map {
-                                        if (blessed $_) {
-                                            $self->format_const(join '' => $vm->deref_pointer($_))
+                                        if (blessed $_ && $_ isa VM::Pointer) {
+                                            $self->format_const(
+                                                join '' => map {
+                                                    $_ isa VM::Inst::Literal ? $_->value : $_
+                                                } $vm->deref_pointer($_)
+                                            )
+                                        } elsif (blessed $_ && $_ isa VM::Inst::Literal) {
+                                            $self->format_const( $_->value )
                                         } elsif (exists $vm->labels->{$_}) {
                                             $_
                                         } else {

@@ -13,11 +13,11 @@ my $state = VM->new(
         VM::Inst->label('.doubler'),
             VM::Inst->LOAD_ARG, 0,
             VM::Inst->DUP,
-            VM::Inst->ADD_NUM,
+            VM::Inst->ADD_INT,
             VM::Inst->RETURN,
 
         VM::Inst->label('.main'),
-            VM::Inst->CONST_NUM, 10,
+            VM::Inst->CONST_INT, 10,
             VM::Inst->CALL, VM::Inst->marker('.doubler'), 1,
             VM::Inst->PRINT,
             VM::Inst->HALT

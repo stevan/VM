@@ -10,7 +10,7 @@ use List::Util   ();
 use Time::HiRes  ();
 
 use VM::Inst;
-use VM::Error;
+use VM::Errors;
 
 class VM::Debugger::StatusView :isa(VM::Debugger::UI::View) {
     field $width :param :reader;
@@ -53,7 +53,7 @@ class VM::Debugger::StatusView :isa(VM::Debugger::UI::View) {
                     (length($strings[$_]) > ($width - 8)
                         ? "%05d ┊ %-".($width - 9).".".($width - 9)."s~"
                         : "%05d ┊ %-".($width - 8)."s"),
-                    ($_, '"'.$strings[$_].'"')
+                    ($_, $strings[$_])
             ),' │']
         } 0 .. $#strings),
        ['╰─',('─' x $width),'─╯'],

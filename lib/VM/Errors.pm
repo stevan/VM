@@ -10,6 +10,8 @@ package VM::Errors {
     our @ERRORS;
     BEGIN {
         @ERRORS = qw(
+            FATAL_ERROR
+
             UNKNOWN_OPCODE
             UNEXPECTED_END_OF_CODE
 
