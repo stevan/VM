@@ -93,7 +93,6 @@ class VM {
         $assembler = VM::Assembler->new;
 
         # setup the memory regions
-        $regions[ VM::MemoryBlocks->NULL   ] = VM::Pointer::Null->new;
         $regions[ VM::MemoryBlocks->STACK  ] = \@stack;
         $regions[ VM::MemoryBlocks->HEAP   ] = \@heap;
         $regions[ VM::MemoryBlocks->CODE   ] = \@code;
@@ -207,7 +206,7 @@ class VM {
         return $regions[ $p->block ]->@[ $p->address .. ($p->address + ($p->size - 1)) ];
     }
 
-    method heap_alloc ($size, $init=undef) {
+    method heap_alloc ($size, $type, $init=undef) {
         my $addr = scalar @heap;
         my @init;
            @init = @$init if defined $init;
@@ -215,10 +214,12 @@ class VM {
         $heap[$addr + $_] = $init[$_] foreach 0 .. ($size - 1);
 
         my $ptr_addr = scalar @pointers;
-        return $pointers[$ptr_addr] = VM::Pointer::Heap->new(
+        return $pointers[$ptr_addr] = VM::Pointer->new(
+            type     => $type,
+            block    => VM::MemoryBlocks->HEAP,
             address  => $addr,
             size     => $size,
-            ptr_addr => $ptr_addr,
+            backref  => $ptr_addr,
         );
     }
 
@@ -405,9 +406,11 @@ class VM {
                 $_ isa VM::Inst::Literal ? $_->value : $_
             } @a, @b;
 
-            $self->PUSH( $self->heap_alloc( length $str, [
-                map { VM::Inst::Literal::CHAR->new( value => $_ ) } split '', $str
-            ]));
+            $self->PUSH( $self->heap_alloc(
+                length $str,
+                VM::Pointer::Type->CHAR,
+                [ map { VM::Inst::Literal::CHAR->new( value => $_ ) } split '', $str ]
+            ));
         } elsif ($opcode isa VM::Inst::Op::FORMAT_STR) {
             my $format = $self->next_op;
                $format = join '' => map {
@@ -425,9 +428,11 @@ class VM {
 
             my $str = sprintf($format, @args);
 
-            $self->PUSH( $self->heap_alloc( length $str, [
-                map { VM::Inst::Literal::CHAR->new( value => $_ ) } split '', $str
-            ]));
+            $self->PUSH( $self->heap_alloc(
+                length $str,
+                VM::Pointer::Type->CHAR,
+                [ map { VM::Inst::Literal::CHAR->new( value => $_ ) } split '', $str ]
+            ));
         }
         ## ------------------------------------
         ## Conditionals
@@ -471,8 +476,9 @@ class VM {
         ## ------------------------------------
         elsif ($opcode isa VM::Inst::Op::ALLOC_MEM) {
             my $size = $self->POP;
+            my $type = $self->next_op;
 
-            $self->PUSH( $self->heap_alloc( $size->value ) );
+            $self->PUSH( $self->heap_alloc( $size->value, $type ) );
 
         } elsif ($opcode isa VM::Inst::Op::LOAD_MEM) {
             my $ptr    = $self->POP;
@@ -481,7 +487,7 @@ class VM {
             # TODO: throw an error if ...
             # - make sure it is the right HEAP type
 
-            unless (defined $pointers[ $ptr->ptr_addr ]) {
+            unless (defined $pointers[ $ptr->backref ]) {
                 return VM::Errors->MEMORY_ALREADY_FREED;
             }
 
@@ -499,7 +505,7 @@ class VM {
             # TODO: throw an error if ...
             # - make sure it is the right HEAP type
 
-            unless (defined $pointers[ $ptr->ptr_addr ]) {
+            unless (defined $pointers[ $ptr->backref ]) {
                 return VM::Errors->MEMORY_ALREADY_FREED;
             }
 
@@ -515,7 +521,7 @@ class VM {
             # TODO: throw an error if ...
             # - make sure it is the right HEAP type
 
-            unless (defined $pointers[ $ptr->ptr_addr ]) {
+            unless (defined $pointers[ $ptr->backref ]) {
                 return VM::Errors->MEMORY_ALREADY_FREED;
             }
 
@@ -528,14 +534,14 @@ class VM {
             # TODO: throw an error if ...
             # - make sure it is the right HEAP type
 
-            unless (defined $pointers[ $ptr->ptr_addr ]) {
+            unless (defined $pointers[ $ptr->backref ]) {
                 return VM::Errors->MEMORY_ALREADY_FREED;
             }
 
             $heap[ $ptr->address + $_ ] = undef
                 foreach 0 .. ($ptr->size - 1);
 
-            $pointers[ $ptr->ptr_addr ] = undef;
+            $pointers[ $ptr->backref ] = undef;
 
             $self->compact_heap;
             $self->compact_pointers;
@@ -547,8 +553,8 @@ class VM {
             # TODO: throw an error if ...
             # - make sure it is the right HEAP type
 
-            unless (defined $pointers[ $from_ptr->ptr_addr ]
-                &&  defined $pointers[ $from_ptr->ptr_addr ]) {
+            unless (defined $pointers[ $from_ptr->backref ]
+                &&  defined $pointers[ $from_ptr->backref ]) {
                 return VM::Errors->MEMORY_ALREADY_FREED;
             }
 
@@ -571,8 +577,8 @@ class VM {
             #   memory region if we want, but for now
             #   it also needs to be a memory one
 
-            unless (defined $pointers[ $from_ptr->ptr_addr ]
-                &&  defined $pointers[ $from_ptr->ptr_addr ]) {
+            unless (defined $pointers[ $from_ptr->backref ]
+                &&  defined $pointers[ $from_ptr->backref ]) {
                 return VM::Errors->MEMORY_ALREADY_FREED;
             }
 

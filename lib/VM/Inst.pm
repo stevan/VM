@@ -10,6 +10,8 @@ use VM::Inst::Op;
 class VM::Inst::Label  { field $name :param :reader }
 class VM::Inst::Marker { field $name :param :reader }
 
+class VM::Inst::TypeOf { field $type :param :reader }
+
 package VM::Inst {
 
     our @OPCODES;
@@ -97,5 +99,10 @@ package VM::Inst {
 
     sub label  ($, $name) { VM::Inst::Label ->new( name => $name ) }
     sub marker ($, $name) { VM::Inst::Marker->new( name => $name ) }
+
+    sub type_of_ANY   ($) { VM::Inst::TypeOf->new( type => VM::Pointer::Type->ANY   ) }
+    sub type_of_INT   ($) { VM::Inst::TypeOf->new( type => VM::Pointer::Type->INT   ) }
+    sub type_of_FLOAT ($) { VM::Inst::TypeOf->new( type => VM::Pointer::Type->FLOAT ) }
+    sub type_of_CHAR  ($) { VM::Inst::TypeOf->new( type => VM::Pointer::Type->CHAR  ) }
 
 }

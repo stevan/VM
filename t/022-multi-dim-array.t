@@ -56,7 +56,7 @@ my $state = VM->new(
 
                 # alloc inner array
                 VM::Inst->LOAD_ARG, 0,
-                VM::Inst->ALLOC_MEM,
+                VM::Inst->ALLOC_MEM, VM::Inst->type_of_INT,
 
                 # store it
                 VM::Inst->DUP,         # inner $ptr
@@ -87,7 +87,7 @@ my $state = VM->new(
 
             # allocate 3 cells
             VM::Inst->CONST_INT, 3,
-            VM::Inst->ALLOC_MEM,
+            VM::Inst->ALLOC_MEM, VM::Inst->type_of_INT,
 
             VM::Inst->DUP,
             # the size of the array

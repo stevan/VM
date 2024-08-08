@@ -12,7 +12,7 @@ my $state = VM->new(
     source => [
         VM::Inst->label('.create_array'),
             VM::Inst->LOAD_ARG, 0,
-            VM::Inst->ALLOC_MEM,
+            VM::Inst->ALLOC_MEM, VM::Inst->type_of_INT,
 
             VM::Inst->CONST_INT, 100,
             VM::Inst->CONST_INT, 3,

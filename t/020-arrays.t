@@ -17,7 +17,7 @@ my $state = VM->new(
             # of the first cell on the
             # top of the stack
             VM::Inst->CONST_INT, 3,
-            VM::Inst->ALLOC_MEM,
+            VM::Inst->ALLOC_MEM, VM::Inst->type_of_ANY,
 
             # add the values to the array
             VM::Inst->CONST_STR, "Joe",

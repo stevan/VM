@@ -45,7 +45,8 @@ class VM::Assembler {
                             $labels{$line->name},
                             $line->name
                         );
-                    # handle any ops here ...
+                    } elsif ($line isa VM::Inst::TypeOf) {
+                        push @code => $line->type;
                     } elsif ($line isa VM::Inst::Op) {
                         $i++;
                         push @code => $line;
@@ -56,9 +57,11 @@ class VM::Assembler {
                     # collect the string table ...
                     if (created_as_string($line) && length($line) != 1) {
                         # and replace it with a ref to the index
-                        my $ptr = VM::Pointer::Static->new(
+                        my $ptr = VM::Pointer->new(
+                            block   => VM::MemoryBlocks->STATIC,
                             address => scalar(@statics),
                             size    => length($line),
+                            type    => VM::Pointer::Type->CHAR
                         );
 
                         #warn "(${line})";

@@ -41,6 +41,7 @@ class VM::Inst::Op::JUMP_IF_FALSE :isa(VM::Inst::Op::UnOp) {}
 class VM::Inst::Op::LOAD          :isa(VM::Inst::Op::UnOp) {}
 class VM::Inst::Op::STORE         :isa(VM::Inst::Op::UnOp) {}
 class VM::Inst::Op::LOAD_ARG      :isa(VM::Inst::Op::UnOp) {}
+class VM::Inst::Op::ALLOC_MEM     :isa(VM::Inst::Op::UnOp) {}
 # BinOps
 class VM::Inst::Op::CALL          :isa(VM::Inst::Op::BinOp) {}
 class VM::Inst::Op::FORMAT_STR    :isa(VM::Inst::Op::BinOp) {}
@@ -68,7 +69,6 @@ class VM::Inst::Op::LT_CHAR       :isa(VM::Inst::Op::StackOp) {}
 class VM::Inst::Op::GT_CHAR       :isa(VM::Inst::Op::StackOp) {}
 class VM::Inst::Op::EQ_CHAR       :isa(VM::Inst::Op::StackOp) {}
 class VM::Inst::Op::CONCAT_STR    :isa(VM::Inst::Op::StackOp) {}
-class VM::Inst::Op::ALLOC_MEM     :isa(VM::Inst::Op::StackOp) {}
 class VM::Inst::Op::LOAD_MEM      :isa(VM::Inst::Op::StackOp) {}
 class VM::Inst::Op::STORE_MEM     :isa(VM::Inst::Op::StackOp) {}
 class VM::Inst::Op::FREE_MEM      :isa(VM::Inst::Op::StackOp) {}

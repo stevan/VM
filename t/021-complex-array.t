@@ -46,11 +46,11 @@ my $state = VM->new(
 
             # allocate 3 cells
             VM::Inst->CONST_INT, 3,
-            VM::Inst->ALLOC_MEM,
+            VM::Inst->ALLOC_MEM, VM::Inst->type_of_INT,
 
             # allocate 5 cells
             VM::Inst->CONST_INT, 5,
-            VM::Inst->ALLOC_MEM,
+            VM::Inst->ALLOC_MEM, VM::Inst->type_of_INT,
 
             # .. make one the arg
             VM::Inst->DUP,
