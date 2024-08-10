@@ -6,36 +6,33 @@ use experimental qw[ class builtin ];
 use Test::More;
 
 use VM;
+use VM::Assembler::Assembly;
 
 my $state = VM->new(
-    entry  => '.main',
+    entry  => label *main,
     source => [
-        VM::Inst->label('.join'),
-            VM::Inst->LOAD_ARG, 0,
-            VM::Inst->LOAD_ARG, 1,
-            VM::Inst->SWAP,
-            VM::Inst->CONCAT_STR,
+        label *join,
+            LOAD_ARG \0,
+            LOAD_ARG \1,
+            SWAP,
+            CONCAT_STR,
+            DUP,
+            DUP,
+            LOAD_ARG \2,
+            CONCAT_STR,
+            SWAP,
+            FREE_MEM,
+            RETURN,
 
-            VM::Inst->DUP,
-
-            VM::Inst->DUP,
-            VM::Inst->LOAD_ARG, 2,
-            VM::Inst->CONCAT_STR,
-
-            VM::Inst->SWAP,
-            VM::Inst->FREE_MEM,
-
-            VM::Inst->RETURN,
-
-        VM::Inst->label('.main'),
-            VM::Inst->CONST_STR, 'two',
-            VM::Inst->CONST_STR, 'one',
-            VM::Inst->CONST_STR, ', ',
-            VM::Inst->CALL, VM::Inst->marker('.join'), 3,
-            VM::Inst->DUP,
-            VM::Inst->PRINT,
-            VM::Inst->FREE_MEM,
-            VM::Inst->HALT
+        label *main,
+            CONST_STR \'two',
+            CONST_STR \'one',
+            CONST_STR \', ',
+            CALL(*join, \3),
+            DUP,
+            PRINT,
+            FREE_MEM,
+            HALT
     ]
 )->assemble->run;
 

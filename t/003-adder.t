@@ -6,21 +6,22 @@ use experimental qw[ class builtin ];
 use Test::More;
 
 use VM;
+use VM::Assembler::Assembly;
 
 my $state = VM->new(
-    entry  => '.main',
+    entry  => label *main,
     source => [
-        VM::Inst->label('.doubler'),
-            VM::Inst->LOAD_ARG, 0,
-            VM::Inst->DUP,
-            VM::Inst->ADD_INT,
-            VM::Inst->RETURN,
+        label *doubler,
+            LOAD_ARG \0,
+            DUP,
+            ADD_INT,
+            RETURN,
 
-        VM::Inst->label('.main'),
-            VM::Inst->CONST_INT, 10,
-            VM::Inst->CALL, VM::Inst->marker('.doubler'), 1,
-            VM::Inst->PRINT,
-            VM::Inst->HALT
+        label *main,
+            CONST_INT i(10),
+            CALL(*doubler, \1),
+            PRINT,
+            HALT
     ]
 )->assemble->run;
 

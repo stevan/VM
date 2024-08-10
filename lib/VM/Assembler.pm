@@ -52,6 +52,9 @@ class VM::Assembler {
                         push @code => $line;
 
                         $prev_inst = $line;
+                    } elsif ($line isa VM::Inst::Literal) {
+                        $i++;
+                        push @code => $line;
                     }
                 } else {
                     # collect the string table ...

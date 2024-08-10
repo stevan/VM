@@ -6,25 +6,26 @@ use experimental qw[ class builtin ];
 use Test::More;
 
 use VM;
+use VM::Assembler::Assembly;
 
 my $state = VM->new(
-    entry  => '.main',
+    entry  => label *main,
     source => [
-        VM::Inst->label('.greet'),
-            VM::Inst->CONST_STR, "Hello, ",
-            VM::Inst->LOAD_ARG, 0,
-            VM::Inst->CONCAT_STR,
-            VM::Inst->CONST_STR, "... hi!",
-            VM::Inst->WARN,
-            VM::Inst->RETURN,
+        label *greet,
+            CONST_STR \"Hello, ",
+            LOAD_ARG  \0,
+            CONCAT_STR,
+            CONST_STR \"... hi!",
+            WARN,
+            RETURN,
 
-        VM::Inst->label('.main'),
-            VM::Inst->CONST_STR, "Joe",
-            VM::Inst->CALL, VM::Inst->marker('.greet'), 1,
-            VM::Inst->DUP,
-            VM::Inst->PRINT,
-            VM::Inst->FREE_MEM,
-            VM::Inst->HALT
+        label *main,
+            CONST_STR \"Joe",
+            CALL(*greet, \1),
+            DUP,
+            PRINT,
+            FREE_MEM,
+            HALT
     ]
 )->assemble->run;
 

@@ -121,7 +121,8 @@ class VM {
         @code   = @$code;
         %labels = %$labels;
         @static = @$static;
-        $pc     = $labels{ $entry } // die "Could not find entry point($entry) in source";
+        $pc     = $labels{ blessed $entry ? $entry->name : $entry }
+                        // die "Could not find entry point($entry) in source";
         return $self;
     }
 

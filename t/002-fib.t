@@ -6,50 +6,49 @@ use experimental qw[ class builtin ];
 use Test::More;
 
 use VM;
-
+use VM::Assembler::Assembly;
 
 my $state = VM->new(
-    entry  => '.main',
+    entry  => label *main,
     source => [
-        VM::Inst->label('.fib'),
-            VM::Inst->LOAD_ARG, 0,
-            VM::Inst->CONST_INT, 0,
-            VM::Inst->EQ_INT,
-            VM::Inst->JUMP_IF_FALSE, VM::Inst->marker('.fib.1'),
-            VM::Inst->CONST_INT, 0,
-            VM::Inst->RETURN,
-        VM::Inst->label('.fib.1'),
-            VM::Inst->LOAD_ARG, 0,
-            VM::Inst->CONST_INT, 3,
-            VM::Inst->LT_INT,
-            VM::Inst->JUMP_IF_FALSE, VM::Inst->marker('.fib.2'),
-            VM::Inst->CONST_INT, 1,
-            VM::Inst->RETURN,
-        VM::Inst->label('.fib.2'),
-            VM::Inst->LOAD_ARG, 0,
-            VM::Inst->CONST_INT, 1,
-            VM::Inst->SUB_INT,
-            VM::Inst->CALL, VM::Inst->marker('.fib'), 1,
+        label *fib,
+            LOAD_ARG \0,
+            CONST_INT i(0),
+            EQ_INT,
+            JUMP_IF_FALSE *fib::cond_1,
+            CONST_INT i(0),
+            RETURN,
+        label *fib::cond_1,
+            LOAD_ARG \0,
+            CONST_INT i(3),
+            LT_INT,
+            JUMP_IF_FALSE *fib::cond_2,
+            CONST_INT i(1),
+            RETURN,
+        label *fib::cond_2,
+            LOAD_ARG \0,
+            CONST_INT i(1),
+            SUB_INT,
+            CALL(*fib, \1),
 
-            VM::Inst->LOAD_ARG, 0,
-            VM::Inst->CONST_INT, 2,
-            VM::Inst->SUB_INT,
-            VM::Inst->CALL, VM::Inst->marker('.fib'), 1,
+            LOAD_ARG \0,
+            CONST_INT i(2),
+            SUB_INT,
+            CALL(*fib, \1),
 
-            VM::Inst->ADD_INT,
-            VM::Inst->RETURN,
+            ADD_INT,
+            RETURN,
 
-        VM::Inst->label('.main'),
+        label *main,
+            CONST_INT i(5),
+            CALL(*fib, \1),
 
-            VM::Inst->CONST_INT, 5,
-            VM::Inst->CALL, VM::Inst->marker('.fib'), 1,
+            FORMAT_STR("VM: %d", \1),
 
-            VM::Inst->FORMAT_STR, "VM: %d", 1,
-
-            VM::Inst->DUP,
-            VM::Inst->PRINT,
-            VM::Inst->FREE_MEM,
-            VM::Inst->HALT
+            DUP,
+            PRINT,
+            FREE_MEM,
+            HALT,
     ]
 )->assemble->run;
 
