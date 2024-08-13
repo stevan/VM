@@ -8,10 +8,17 @@ use Test::More;
 use VM;
 use VM::Assembler::Assembly;
 
+
+sub fun :prototype(&@) ($f, @opcodes) { label $f->(), @opcodes }
+
+
+
+
+
 my $state = VM->new(
     entry  => label *main,
     source => [
-        label *greet,
+        fun {*greet}
             CONST_STR \"Hello, ",
             LOAD_ARG  \0,
             CONCAT_STR,
@@ -19,7 +26,7 @@ my $state = VM->new(
             WARN,
             RETURN,
 
-        label *main,
+        fun {*main}
             CONST_STR \"Joe",
             CALL(*greet, \1),
             DUP,
